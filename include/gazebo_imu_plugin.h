@@ -58,9 +58,9 @@
 #include <common.h>
 
 namespace imu_plugin {
-  //typedef const boost::shared_ptr<const sensor_msgs::msgs::Imu> ImuPtr;
-
-  static constexpr auto kDefaultIMUTopic = "imu";
+    
+  static constexpr auto kDefaultLinkName = "imu_link";
+  static constexpr auto kDefaultImuTopic = "imu";
   // Default values for use with ADIS16448 IMU
   static constexpr double kDefaultAdisGyroscopeNoiseDensity =
       2.0 * 35.0 / 3600.0 / 180.0 * M_PI;
@@ -105,14 +105,14 @@ namespace imu_plugin {
     double gravity_magnitude;
   };
 
-  class IGNITION_GAZEBO_VISIBLE IMUPlugin:
+  class IGNITION_GAZEBO_VISIBLE ImuPlugin:
     public ignition::gazebo::System,
     public ignition::gazebo::ISystemConfigure,
     public ignition::gazebo::ISystemPreUpdate,
     public ignition::gazebo::ISystemPostUpdate
     {
-    public: IMUPlugin();
-    public: ~IMUPlugin() override;
+    public: ImuPlugin();
+    public: ~ImuPlugin() override;
     public: void Configure(const ignition::gazebo::Entity &_entity,
                             const std::shared_ptr<const sdf::Element> &_sdf,
                             ignition::gazebo::EntityComponentManager &_ecm,
@@ -153,7 +153,7 @@ namespace imu_plugin {
     ImuParameters imu_parameters_;
 
     uint64_t seq_ = 0;
-  }; // class IMUPlugin
+  }; // class ImuPlugin
 } // namespace imu_plugin
 
 #endif // IMU_PLUGIN_HH_

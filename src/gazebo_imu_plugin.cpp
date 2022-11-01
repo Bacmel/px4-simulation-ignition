@@ -64,14 +64,11 @@ void IMUPlugin::Configure(const ignition::gazebo::Entity &_entity,
                             ignition::gazebo::EntityComponentManager &_ecm,
                             ignition::gazebo::EventManager &/*_eventMgr*/)
 {
+  
   getSdfParams(_sdf);
 
-  pub_imu_ = this->node.Advertise<sensor_msgs::msgs::Imu>("~/" + model_->GetName()+ "/link/" + imu_topic_);
-
-  auto linkName = _sdf->Get<std::string>("link_name");
   model_ = ignition::gazebo::Model(_entity);
-  // Get link entity
-  model_link_ = model_.LinkByName(_ecm, linkName);
+  model_link_ = model_.LinkByName(_ecm, link_name_);
 
   if(!_ecm.EntityHasComponentType(model_link_, ignition::gazebo::components::WorldPose::typeId))
   {
@@ -82,10 +79,22 @@ void IMUPlugin::Configure(const ignition::gazebo::Entity &_entity,
     _ecm.CreateComponent(model_link_, ignition::gazebo::components::WorldLinearVelocity());
   }
 
+  // Gravity
+  if(!_ecm.EntityHasComponentType(model_link_, ignition::gazebo::components::Gravity::typeId))
+  {
+    gravity_W_ = kDefaultGravityMagnitude;
+  } else {
+    gravity_W_ =_ecm.CreateComponent(model_link_, ignition::gazebo::components::Gravity());
+  }
+  imu_parameters_.gravity_magnitude = gravity_W_.Length();
+
+
+  pub_imu_ = this->node.Advertise<sensor_msgs::msgs::Imu>(imu_topic_);
+
   last_time_ = _info.simTime();
 
   // Fill imu message.
-  // imu_message_.header.frame_id = frame_id_; TODO Add header
+  imu_message_.set_allocated_frame_id(frame_id_);
   // We assume uncorrelated noise on the 3 channels -> only set diagonal
   // elements. Only the broadband noise component is considered, specified as a
   // continuous-time density (two-sided spectrum); not the true covariance of
@@ -94,6 +103,8 @@ void IMUPlugin::Configure(const ignition::gazebo::Entity &_entity,
   for(int i=0; i< 9; i++){
     switch (i){
     case 0:
+    case 4:
+    case 8:
       imu_message_.add_angular_velocity_covariance(imu_parameters_.gyroscope_noise_density *
       imu_parameters_.gyroscope_noise_density);
 
@@ -105,21 +116,6 @@ void IMUPlugin::Configure(const ignition::gazebo::Entity &_entity,
     case 1:
     case 2:
     case 3:
-      imu_message_.add_angular_velocity_covariance(0.0);
-
-      imu_message_.add_orientation_covariance(-1.0);
-
-      imu_message_.add_linear_acceleration_covariance(0.0);
-      break;
-    case 4:
-      imu_message_.add_angular_velocity_covariance(imu_parameters_.gyroscope_noise_density *
-      imu_parameters_.gyroscope_noise_density);
-
-      imu_message_.add_orientation_covariance(-1.0);
-
-      imu_message_.add_linear_acceleration_covariance(imu_parameters_.accelerometer_noise_density *
-      imu_parameters_.accelerometer_noise_density);
-      break;
     case 5:
     case 6:
     case 7:
@@ -129,20 +125,8 @@ void IMUPlugin::Configure(const ignition::gazebo::Entity &_entity,
 
       imu_message_.add_linear_acceleration_covariance(0.0);
       break;
-    case 8:
-      imu_message_.add_angular_velocity_covariance(imu_parameters_.gyroscope_noise_density *
-      imu_parameters_.gyroscope_noise_density);
-
-      imu_message_.add_orientation_covariance(-1.0);
-
-      imu_message_.add_linear_acceleration_covariance(imu_parameters_.accelerometer_noise_density *
-      imu_parameters_.accelerometer_noise_density);
-      break;
     }
   }
-
-  gravity_W_ = world_->Gravity();
-  imu_parameters_.gravity_magnitude = gravity_W_.Length();
 
   standard_normal_distribution_ = std::normal_distribution<double>(0.0, 1.0);
 
@@ -169,14 +153,14 @@ void IMUPlugin::PostUpdate(const ignition::gazebo::UpdateInfo &_info,
   const double dt = std::chrono::duration<double>(current_time - last_pub_time_).count();
 
   //TODO: Get valid data for these
-  const ignition::gazebo::components::WorldPose* pComp = _ecm.Component<ignition::gazebo::components::WorldPose>(model_link_);
-  const ignition::math::Pose3d T_W_I = pComp->Data();
+  const ignition::math::Pose3d T_W_I = _ecm.Component<ignition::gazebo::components::WorldPose>(model_link_)->Data();
 
   ignition::math::Quaterniond C_W_I = T_W_I.Rot();
 
-  ignition::math::Vector3d acceleration_I = model_link_->RelativeLinearAccel() - C_W_I.RotateVectorReverse(gravity_W_);
+  ignition::math::Vector3d acceleration_I = _ecm.Component<ignition::gazebo::components::RelativeLinearAccel>(model_link_)->Data()
+                                            - C_W_I.RotateVectorReverse(gravity_W_);
 
-  ignition::math::Vector3d angular_vel_I = model_link_->RelativeAngularVel();
+  ignition::math::Vector3d angular_vel_I = _ecm.Component<ignition::gazebo::components::RelativeAngularVel>(model_link_)->Data();
 
   Eigen::Vector3d linear_acceleration_I(acceleration_I.X(),
                                         acceleration_I.Y(),
@@ -199,6 +183,13 @@ void IMUPlugin::PostUpdate(const ignition::gazebo::UpdateInfo &_info,
   angular_velocity->set_y(angular_velocity_I[1]);
   angular_velocity->set_z(angular_velocity_I[2]);
 
+  // Copy ignition::math::Quaterniond to ignition::msgs::Quaternion
+  ignition::msgs::Quaternion* orientation = new ignition::msgs::Quaternion();
+  orientation->set_x(C_W_I.X());
+  orientation->set_y(C_W_I.Y());
+  orientation->set_z(C_W_I.Z());
+  orientation->set_w(C_W_I.W());
+  
   // Fill IMU message.
   // ADD HEaders
   // imu_message_.header.stamp.sec = current_time.sec;
@@ -222,11 +213,20 @@ void IMUPlugin::PostUpdate(const ignition::gazebo::UpdateInfo &_info,
 
 void IMUPlugin::getSdfParams(const std::shared_ptr<const sdf::Element> &sdf)
 {
+
+  if (sdf->HasElement("linkName"))
+  {
+    link_name_ = sdf->GetElement("linkName")->Get<std::string>();
+  } else {
+    link_name_ = kDefaultLinkName;
+    ignwarn << "[gazebo_imu_plugin] Using default imu topic " << link_name_ << "\n";
+  }
+  
   if (sdf->HasElement("imuTopic"))
   {
     imu_topic_ = sdf->GetElement("imuTopic")->Get<std::string>();
   } else {
-    imu_topic_ = kDefaultIMUTopic;
+    imu_topic_ = kDefaultImuTopic;
     ignwarn << "[gazebo_imu_plugin] Using default imu topic " << imu_topic_ << "\n";
   }
 
@@ -295,6 +295,9 @@ void IMUPlugin::getSdfParams(const std::shared_ptr<const sdf::Element> &sdf)
     imu_parameters_.accelerometerTurnOnBiasSigma = kDefaultAdisAccelerometerTurnOnBiasSigma;
     ignwarn << "[gazebo_imu_plugin] Using accelerometer turn on bias sigma " << imu_parameters_.accelerometerTurnOnBiasSigma << "\n";
   }
+
+   = _sdf->Get<std::string>("link_name");
+  frame_id_ = link_name_;
 }
 
 /// \brief This function adds noise to acceleration and angular rates for
