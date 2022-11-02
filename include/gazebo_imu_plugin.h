@@ -51,9 +51,11 @@
 #include <ignition/math.hh>
 #include <ignition/gazebo/Model.hh>
 #include <ignition/gazebo/Util.hh>
-#include <ignition/gazebo/components/LinearVelocity.hh>
-#include <ignition/gazebo/System.hh>
+#include <ignition/gazebo/components/LinearAcceleration.hh>
+#include <ignition/gazebo/components/AngularVelocity.hh>
 #include <ignition/gazebo/components/Pose.hh>
+#include <ignition/gazebo/components/Gravity.hh>
+#include <ignition/gazebo/System.hh>
 
 #include <common.h>
 

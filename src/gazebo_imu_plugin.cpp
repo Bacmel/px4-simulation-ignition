@@ -43,23 +43,23 @@
 #include <ignition/plugin/Register.hh>
 
 IGNITION_ADD_PLUGIN(
-    imu_plugin::IMUPlugin,
+    imu_plugin::ImuPlugin,
     ignition::gazebo::System,
-    imu_plugin::IMUPlugin::ISystemConfigure,
-    imu_plugin::IMUPlugin::ISystemPreUpdate,
-    imu_plugin::IMUPlugin::ISystemPostUpdate)
+    imu_plugin::ImuPlugin::ISystemConfigure,
+    imu_plugin::ImuPlugin::ISystemPreUpdate,
+    imu_plugin::ImuPlugin::ISystemPostUpdate)
 
 using namespace imu_plugin;
 
-IMUPlugin::IMUPlugin():
+ImuPlugin::ImuPlugin()
 {
 }
 
-IMUPlugin::~IMUPlugin()
+ImuPlugin::~ImuPlugin()
 {
 }
 
-void IMUPlugin::Configure(const ignition::gazebo::Entity &_entity,
+void ImuPlugin::Configure(const ignition::gazebo::Entity &_entity,
                             const std::shared_ptr<const sdf::Element> &_sdf,
                             ignition::gazebo::EntityComponentManager &_ecm,
                             ignition::gazebo::EventManager &/*_eventMgr*/)
@@ -74,9 +74,13 @@ void IMUPlugin::Configure(const ignition::gazebo::Entity &_entity,
   {
     _ecm.CreateComponent(model_link_, ignition::gazebo::components::WorldPose());
   }
-  if(!_ecm.EntityHasComponentType(model_link_, ignition::gazebo::components::WorldLinearVelocity::typeId))
+  if(!_ecm.EntityHasComponentType(model_link_, ignition::gazebo::components::WorldAngularVelocity::typeId))
   {
-    _ecm.CreateComponent(model_link_, ignition::gazebo::components::WorldLinearVelocity());
+    _ecm.CreateComponent(model_link_, ignition::gazebo::components::WorldAngularVelocity());
+  }
+  if(!_ecm.EntityHasComponentType(model_link_, ignition::gazebo::components::WorldLinearAcceleration::typeId))
+  {
+    _ecm.CreateComponent(model_link_, ignition::gazebo::components::WorldLinearAcceleration());
   }
 
   // Gravity
@@ -84,17 +88,16 @@ void IMUPlugin::Configure(const ignition::gazebo::Entity &_entity,
   {
     gravity_W_ = kDefaultGravityMagnitude;
   } else {
-    gravity_W_ =_ecm.CreateComponent(model_link_, ignition::gazebo::components::Gravity());
+    _ecm.CreateComponent(model_link_, ignition::gazebo::components::Gravity());
+    gravity_W_ = _ecm.Component<ignition::gazebo::components::Gravity>(model_link_)->Data();
   }
   imu_parameters_.gravity_magnitude = gravity_W_.Length();
 
 
   pub_imu_ = this->node.Advertise<sensor_msgs::msgs::Imu>(imu_topic_);
 
-  last_time_ = _info.simTime();
-
   // Fill imu message.
-  imu_message_.set_allocated_frame_id(frame_id_);
+  imu_message_.set_allocated_frame_id(&frame_id_);
   // We assume uncorrelated noise on the 3 channels -> only set diagonal
   // elements. Only the broadband noise component is considered, specified as a
   // continuous-time density (two-sided spectrum); not the true covariance of
@@ -140,27 +143,27 @@ void IMUPlugin::Configure(const ignition::gazebo::Entity &_entity,
   }  
 }
 
-void IMUPlugin::PreUpdate(const ignition::gazebo::UpdateInfo &_info,
+void ImuPlugin::PreUpdate(const ignition::gazebo::UpdateInfo &_info,
                 ignition::gazebo::EntityComponentManager &_ecm)
 {
 }
 
 // This gets called by the world update start event.
-void IMUPlugin::PostUpdate(const ignition::gazebo::UpdateInfo &_info,
+void ImuPlugin::PostUpdate(const ignition::gazebo::UpdateInfo &_info,
                 const ignition::gazebo::EntityComponentManager &_ecm)
 {
   const std::chrono::steady_clock::duration current_time = _info.simTime;
-  const double dt = std::chrono::duration<double>(current_time - last_pub_time_).count();
+  const double dt = std::chrono::duration<double>(current_time - last_time_).count();
 
   //TODO: Get valid data for these
   const ignition::math::Pose3d T_W_I = _ecm.Component<ignition::gazebo::components::WorldPose>(model_link_)->Data();
 
   ignition::math::Quaterniond C_W_I = T_W_I.Rot();
 
-  ignition::math::Vector3d acceleration_I = _ecm.Component<ignition::gazebo::components::RelativeLinearAccel>(model_link_)->Data()
+  ignition::math::Vector3d acceleration_I = _ecm.Component<ignition::gazebo::components::LinearAcceleration>(model_link_)->Data()
                                             - C_W_I.RotateVectorReverse(gravity_W_);
 
-  ignition::math::Vector3d angular_vel_I = _ecm.Component<ignition::gazebo::components::RelativeAngularVel>(model_link_)->Data();
+  ignition::math::Vector3d angular_vel_I = _ecm.Component<ignition::gazebo::components::AngularVelocity>(model_link_)->Data();
 
   Eigen::Vector3d linear_acceleration_I(acceleration_I.X(),
                                         acceleration_I.Y(),
@@ -207,16 +210,18 @@ void IMUPlugin::PostUpdate(const ignition::gazebo::UpdateInfo &_info,
   imu_message_.set_allocated_linear_acceleration(linear_acceleration);
   imu_message_.set_allocated_angular_velocity(angular_velocity);
 
+  last_time_ = current_time;
+
   // publish mag msg
   pub_imu_.Publish(imu_message_);
 }
 
-void IMUPlugin::getSdfParams(const std::shared_ptr<const sdf::Element> &sdf)
+void ImuPlugin::getSdfParams(const std::shared_ptr<const sdf::Element> &sdf)
 {
 
   if (sdf->HasElement("linkName"))
   {
-    link_name_ = sdf->GetElement("linkName")->Get<std::string>();
+    link_name_ = sdf->Get<std::string>("linkName");
   } else {
     link_name_ = kDefaultLinkName;
     ignwarn << "[gazebo_imu_plugin] Using default imu topic " << link_name_ << "\n";
@@ -224,7 +229,7 @@ void IMUPlugin::getSdfParams(const std::shared_ptr<const sdf::Element> &sdf)
   
   if (sdf->HasElement("imuTopic"))
   {
-    imu_topic_ = sdf->GetElement("imuTopic")->Get<std::string>();
+    imu_topic_ = sdf->Get<std::string>("imuTopic");
   } else {
     imu_topic_ = kDefaultImuTopic;
     ignwarn << "[gazebo_imu_plugin] Using default imu topic " << imu_topic_ << "\n";
@@ -232,7 +237,7 @@ void IMUPlugin::getSdfParams(const std::shared_ptr<const sdf::Element> &sdf)
 
   if (sdf->HasElement("gyroscopeNoiseDensity"))
   {
-    imu_parameters_.gyroscope_noise_density = sdf->GetElement("gyroscopeNoiseDensity")->Get<double>();
+    imu_parameters_.gyroscope_noise_density = sdf->Get<double>("gyroscopeNoiseDensity");
   } else {
     imu_parameters_.gyroscope_noise_density = kDefaultAdisGyroscopeNoiseDensity;
     ignwarn << "[gazebo_imu_plugin] Using gyroscope noise density " << imu_parameters_.gyroscope_noise_density << "\n";
@@ -240,7 +245,7 @@ void IMUPlugin::getSdfParams(const std::shared_ptr<const sdf::Element> &sdf)
 
   if (sdf->HasElement("gyroscopeRandomWalk"))
   {
-    imu_parameters_.gyroscope_random_walk = sdf->GetElement("gyroscopeRandomWalk")->Get<double>();
+    imu_parameters_.gyroscope_random_walk = sdf->Get<double>("gyroscopeRandomWalk");
   } else {
     imu_parameters_.gyroscope_random_walk = kDefaultAdisGyroscopeRandomWalk;
     ignwarn << "[gazebo_imu_plugin] Using gyroscope random walk " << imu_parameters_.gyroscope_random_walk << "\n";
@@ -248,7 +253,7 @@ void IMUPlugin::getSdfParams(const std::shared_ptr<const sdf::Element> &sdf)
 
   if (sdf->HasElement("gyroscopeBiasCorrelationTime"))
   {
-    imu_parameters_.gyroscope_bias_correlation_time = sdf->GetElement("gyroscopeBiasCorrelationTime")->Get<double>();
+    imu_parameters_.gyroscope_bias_correlation_time = sdf->Get<double>("gyroscopeBiasCorrelationTime");
   } else {
     imu_parameters_.gyroscope_bias_correlation_time = kDefaultAdisGyroscopeBiasCorrelationTime;
     ignwarn << "[gazebo_imu_plugin] Using gyroscope bias correlation time " << imu_parameters_.gyroscope_bias_correlation_time << "\n";
@@ -257,15 +262,15 @@ void IMUPlugin::getSdfParams(const std::shared_ptr<const sdf::Element> &sdf)
   
   if (sdf->HasElement("gyroscopeTurnOnBiasSigma"))
   {
-    imu_parameters_.gyroscopeTurnOnBiasSigma = sdf->GetElement("gyroscopeTurnOnBiasSigma")->Get<double>();
+    imu_parameters_.gyroscope_turn_on_bias_sigma = sdf->Get<double>("gyroscopeTurnOnBiasSigma");
   } else {
-    imu_parameters_.gyroscopeTurnOnBiasSigma = kDefaultAdisGyroscopeTurnOnBiasSigma;
-    ignwarn << "[gazebo_imu_plugin] Using gyroscope turn on bias sigma " << imu_parameters_.gyroscopeTurnOnBiasSigma << "\n";
+    imu_parameters_.gyroscope_turn_on_bias_sigma = kDefaultAdisGyroscopeTurnOnBiasSigma;
+    ignwarn << "[gazebo_imu_plugin] Using gyroscope turn on bias sigma " << imu_parameters_.gyroscope_turn_on_bias_sigma << "\n";
   }
 
   if (sdf->HasElement("accelerometerNoiseDensity"))
   {
-    imu_parameters_.accelerometer_noise_density = sdf->GetElement("accelerometerNoiseDensity")->Get<double>();
+    imu_parameters_.accelerometer_noise_density = sdf->Get<double>("accelerometerNoiseDensity");
   } else {
     imu_parameters_.accelerometer_noise_density = kDefaultAdisAccelerometerNoiseDensity;
     ignwarn << "[gazebo_imu_plugin] Using accelerometer noise density " << imu_parameters_.accelerometer_noise_density << "\n";
@@ -273,7 +278,7 @@ void IMUPlugin::getSdfParams(const std::shared_ptr<const sdf::Element> &sdf)
 
   if (sdf->HasElement("accelerometerRandomWalk"))
   {
-    imu_parameters_.accelerometer_random_walk = sdf->GetElement("accelerometerRandomWalk")->Get<double>();
+    imu_parameters_.accelerometer_random_walk = sdf->Get<double>("accelerometerRandomWalk");
   } else {
     imu_parameters_.accelerometer_random_walk = kDefaultAdisAccelerometerRandomWalk;
     ignwarn << "[gazebo_imu_plugin] Using accelerometer random walk " << imu_parameters_.accelerometer_random_walk << "\n";
@@ -281,7 +286,7 @@ void IMUPlugin::getSdfParams(const std::shared_ptr<const sdf::Element> &sdf)
 
   if (sdf->HasElement("accelerometerBiasCorrelationTime"))
   {
-    imu_parameters_.accelerometer_bias_correlation_time = sdf->GetElement("accelerometerBiasCorrelationTime")->Get<double>();
+    imu_parameters_.accelerometer_bias_correlation_time = sdf->Get<double>("accelerometerBiasCorrelationTime");
   } else {
     imu_parameters_.accelerometer_bias_correlation_time = kDefaultAdisAccelerometerBiasCorrelationTime;
     ignwarn << "[gazebo_imu_plugin] Using accelerometer bias correlation time " << imu_parameters_.accelerometer_bias_correlation_time << "\n";
@@ -290,19 +295,18 @@ void IMUPlugin::getSdfParams(const std::shared_ptr<const sdf::Element> &sdf)
   
   if (sdf->HasElement("accelerometerTurnOnBiasSigma"))
   {
-    imu_parameters_.accelerometerTurnOnBiasSigma = sdf->GetElement("accelerometerTurnOnBiasSigma")->Get<double>();
+    imu_parameters_.accelerometer_turn_on_bias_sigma = sdf->Get<double>("accelerometerTurnOnBiasSigma");
   } else {
-    imu_parameters_.accelerometerTurnOnBiasSigma = kDefaultAdisAccelerometerTurnOnBiasSigma;
-    ignwarn << "[gazebo_imu_plugin] Using accelerometer turn on bias sigma " << imu_parameters_.accelerometerTurnOnBiasSigma << "\n";
+    imu_parameters_.accelerometer_turn_on_bias_sigma = kDefaultAdisAccelerometerTurnOnBiasSigma;
+    ignwarn << "[gazebo_imu_plugin] Using accelerometer turn on bias sigma " << imu_parameters_.accelerometer_turn_on_bias_sigma << "\n";
   }
 
-   = _sdf->Get<std::string>("link_name");
   frame_id_ = link_name_;
 }
 
 /// \brief This function adds noise to acceleration and angular rates for
 ///        accelerometer and gyroscope measurement simulation.
-void IMUPlugin::addNoise(
+void ImuPlugin::addNoise(
         Eigen::Vector3d* linear_acceleration,
         Eigen::Vector3d* angular_velocity,
         const double dt)
