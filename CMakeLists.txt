@@ -27,7 +27,7 @@ find_package(MAVLink)
 
 find_package(Protobuf REQUIRED)
 
-PROTOBUF_GENERATE_CPP(SEN_PROTO_SRCS SEN_PROTO_HDRS
+PROTOBUF_GENERATE_CPP(SEN_PROTO_SRCS SEN_PROTO_HDRS DESCRIPTORS SEN_PROTO_DESCS
   msgs/Pressure.proto
   msgs/MagneticField.proto
   msgs/Groundtruth.proto
@@ -35,15 +35,17 @@ PROTOBUF_GENERATE_CPP(SEN_PROTO_SRCS SEN_PROTO_HDRS
   )
 set_source_files_properties(${SEN_PROTO_SRC} ${SEN_PROTO_HDRS}
                            PROPERTIES GENERATED TRUE)
-add_library(gazebo_mavlink_sensor_msgs SHARED ${SEN_PROTO_SRCS})
+add_library(gazebo_mavlink_sensor_msgs SHARED ${SEN_PROTO_SRCS} ${SEN_PROTO_DESCS})
 target_link_libraries(gazebo_mavlink_sensor_msgs ignition-msgs${IGN_MSG_VER})
 
-include_directories(${CMAKE_BINARY_DIR})
+include_directories(${CMAKE_BINARY_DIR} ${Protobuf_IMPORT_DIRS} ${Protobuf_INCLUDE_DIR})
 
 include_directories(
   include
   ${Boost_INCLUDE_DIR}
   ${MAVLINK_INCLUDE_DIRS}
+  ${Protobuf_IMPORT_DIRS}
+  ${Protobuf_INCLUDE_DIR}
 )
 
 add_library(mavlink_sitl_ign_gazebo SHARED src/gazebo_mavlink_interface.cpp src/mavlink_interface.cpp)
