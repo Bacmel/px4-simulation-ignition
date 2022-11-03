@@ -50,60 +50,87 @@
 #include <ignition/gazebo/Util.hh>
 #include <ignition/gazebo/components/LinearVelocity.hh>
 #include <ignition/gazebo/components/Pose.hh>
+#include <ignition/gazebo/components/Name.hh>
 
 #include <Pressure.pb.h>
 
 static constexpr auto kDefaultBarometerTopic = "/baro";
-static constexpr auto kDefaultPubRate = 50;  // [Hz]. Note: averages the supported Baro device ODR in PX4
-static constexpr auto kDefaultAltHome = 488.0; // meters
+static constexpr auto kDefaultPubRate = 50;    // [Hz]. Note: averages the supported Baro device ODR in PX4
+static constexpr auto kDefaultAltHome = 488.0; // altitude AMSL at Irchel Park, Zurich, Switzerland [m]
+
+// international standard atmosphere (troposphere model - valid up to 11km) see [1]
+static constexpr auto kDefaultTemperatureMsl = 288.15; // temperature at MSL [K] (15 [C])
+static constexpr auto kDefaultPressureMsl = 101325.0;  // pressure at MSL [Pa]
+static constexpr auto kDefaultLapseRate = 0.0065;      // reduction in temperature with altitude for troposphere [K/m]
+static constexpr auto kDefaultAirDensityMsl = 1.225;   // air density at MSL [kg/m^3]
+static constexpr auto kDefaultAbsoluteZeroC = -273.15; // [C]
+
+// default values for baro pressure sensor random noise generator
+static constexpr auto kDefaultBaroRndY2 = 0.0;
+static constexpr auto kDefaultBaroRndUseLast = false;
+static constexpr auto kDefaultBaroDriftPaPerSec = 0.0;
+static constexpr auto kDefaultBaroDriftPa = 0.0;
 
 namespace barometer_plugin
 {
-    class IGNITION_GAZEBO_VISIBLE BarometerPlugin:
-    // This is class a system.
-    public ignition::gazebo::System,
-    public ignition::gazebo::ISystemConfigure,
-    public ignition::gazebo::ISystemPreUpdate,
-    public ignition::gazebo::ISystemPostUpdate
-    {
-    public: BarometerPlugin();
-    public: ~BarometerPlugin() override;
-    public: void Configure(const ignition::gazebo::Entity &_entity,
-                            const std::shared_ptr<const sdf::Element> &_sdf,
-                            ignition::gazebo::EntityComponentManager &_ecm,
-                            ignition::gazebo::EventManager &/*_eventMgr*/);
-    public: void PreUpdate(const ignition::gazebo::UpdateInfo &_info,
-                ignition::gazebo::EntityComponentManager &_ecm) override;
-    public: void PostUpdate(const ignition::gazebo::UpdateInfo &_info,
-                const ignition::gazebo::EntityComponentManager &_ecm) override;
-    private:
-        ignition::gazebo::Model model_{ignition::gazebo::kNullEntity};
-        ignition::gazebo::Entity model_link_{ignition::gazebo::kNullEntity};
+  class IGNITION_GAZEBO_VISIBLE BarometerPlugin :
+      // This is class a system.
+      public ignition::gazebo::System,
+      public ignition::gazebo::ISystemConfigure,
+      public ignition::gazebo::ISystemPreUpdate,
+      public ignition::gazebo::ISystemPostUpdate
+  {
+  public:
+    BarometerPlugin();
 
-        std::chrono::steady_clock::duration last_pub_time_{0};
+  public:
+    ~BarometerPlugin() override;
 
-        std::string namespace_;
-        std::string baro_topic_;
-        unsigned int pub_rate_{kDefaultPubRate};
+  public:
+    void Configure(const ignition::gazebo::Entity &_entity,
+                   const std::shared_ptr<const sdf::Element> &_sdf,
+                   ignition::gazebo::EntityComponentManager &_ecm,
+                   ignition::gazebo::EventManager & /*_eventMgr*/);
 
-        std::default_random_engine random_generator_;
-        std::normal_distribution<double> standard_normal_distribution_;
+  public:
+    void PreUpdate(const ignition::gazebo::UpdateInfo &_info,
+                   ignition::gazebo::EntityComponentManager &_ecm) override;
 
-        ignition::math::Pose3d pose_model_start_;
-        ignition::math::Vector3d gravity_W_{ignition::math::Vector3d(0.0, 0.0, -9.8)};
-        double alt_home_;
+  public:
+    void PostUpdate(const ignition::gazebo::UpdateInfo &_info,
+                    const ignition::gazebo::EntityComponentManager &_ecm) override;
 
-        ignition::transport::Node node;
-        ignition::transport::Node::Publisher pub_baro_;
+  private:
+    void addNoise(double &absolute_pressure, double &pressure_altitude, const double &temperature_local, const double dt);
+    void getSdfParams(const std::shared_ptr<const sdf::Element> &sdf);
 
-        sensor_msgs::msgs::Pressure baro_msg_;
+    ignition::gazebo::Model model_{ignition::gazebo::kNullEntity};
+    ignition::gazebo::Entity model_link_{ignition::gazebo::kNullEntity};
 
-        // state variables for baro pressure sensor random noise generator
-        double baro_rnd_y2_{0.0};
-        bool baro_rnd_use_last_{false};
-        double baro_drift_pa_per_sec_;
-        double baro_drift_pa_{0.0};
-    };
-}
+    std::chrono::steady_clock::duration last_pub_time_{0};
 
-#endif
+    std::string link_name_;
+    std::string baro_topic_{kDefaultBarometerTopic};
+    unsigned int pub_rate_{kDefaultPubRate};
+
+    std::default_random_engine random_generator_;
+    std::normal_distribution<double> standard_normal_distribution_;
+
+    ignition::math::Pose3d pose_model_start_;
+    ignition::math::Vector3d gravity_W_{ignition::math::Vector3d(0.0, 0.0, -9.8)};
+    double alt_home_{kDefaultAltHome};
+
+    ignition::transport::Node node;
+    ignition::transport::Node::Publisher pub_baro_;
+
+    sensor_msgs::msgs::Pressure baro_msg_;
+
+    // state variables for baro pressure sensor random noise generator
+    double baro_rnd_y2_{kDefaultBaroRndY2};
+    bool baro_rnd_use_last_{kDefaultBaroRndUseLast};
+    double baro_drift_pa_per_sec_{kDefaultBaroDriftPaPerSec};
+    double baro_drift_pa_{kDefaultBaroDriftPa};
+  }; // class BarometerPlugin
+} // namespace barometer_plugin
+
+#endif // BAROMETER_PLUGIN_HH_
