@@ -116,7 +116,7 @@ void BarometerPlugin::Configure(const ignition::gazebo::Entity &_entity,
     _ecm.CreateComponent(model_link_, ignition::gazebo::components::WorldLinearVelocity());
   }
 
-  pub_baro_ = this->node.Advertise<sensor_msgs::msgs::Pressure>("/" + link_name_ + "/sensor" + baro_topic_);
+  pub_baro_ = this->node.Advertise<sensor_msgs::msgs::Pressure>("/" + model_.Name(_ecm) + "/sensor" + baro_topic_);
 }
 
 void BarometerPlugin::addNoise(double &absolute_pressure, double &pressure_altitude, const double &temperature_local, const double dt)
