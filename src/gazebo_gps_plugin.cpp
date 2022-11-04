@@ -37,146 +37,219 @@ IGNITION_ADD_PLUGIN(
 
 using namespace gps_plugin;
 
-
 GpsPlugin::GpsPlugin()
 {
-  pub_gps_ = this->node.Advertise<sensor_msgs::msgs::SITLGps>("/world/quadcopter/model/X3/link/base_link/sensor/gps");
 }
 
-GpsPlugin::~GpsPlugin() {
+GpsPlugin::~GpsPlugin()
+{
 }
 
-void GpsPlugin::Configure(const ignition::gazebo::Entity &_entity,
-      const std::shared_ptr<const sdf::Element> &_sdf,
-      ignition::gazebo::EntityComponentManager &_ecm,
-      ignition::gazebo::EventManager &_em) {
-        // Use environment variables if set for home position.
+void GpsPlugin::getSdfParams(const std::shared_ptr<const sdf::Element> &sdf)
+{
+  // Use environment variables if set for home position.
   const char *env_lat = std::getenv("PX4_HOME_LAT");
   const char *env_lon = std::getenv("PX4_HOME_LON");
   const char *env_alt = std::getenv("PX4_HOME_ALT");
 
-  if (env_lat) {
+  if (env_lat)
+  {
     lat_home_ = std::stod(env_lat) * M_PI / 180.0;
     ignmsg << "[gazebo_gps_plugin] Home latitude is set to " << std::stod(env_lat) << ".\n";
-  } else if(_sdf->HasElement("homeLatitude")) {
-    double latitude;
-    gazebo::getSdfParam<double>(_sdf, "homeLatitude", latitude, lat_home_);
-    lat_home_ = latitude * M_PI / 180.0;
+  }
+  else if (sdf->HasElement("homeLatitude"))
+  {
+    lat_home_ = sdf->Get<double>("homeLatitude");
+    lat_home_ = lat_home_ * M_PI / 180.0;
+  }
+  else
+  {
+    lat_home_ = kDefaultHomeLatitude;
+    ignwarn << "[gazebo_gps_plugin] Home latitude is set to " << lat_home_ << "\n";
   }
 
-  if (env_lon) {
+  if (env_lon)
+  {
     lon_home_ = std::stod(env_lon) * M_PI / 180.0;
     ignmsg << "[gazebo_gps_plugin] Home longitude is set to " << std::stod(env_lon) << ".\n";
-  } else if(_sdf->HasElement("homeLongitude")) {
-    double longitude;
-    gazebo::getSdfParam<double>(_sdf, "homeLongitude", longitude, lon_home_);
-    lon_home_ = longitude * M_PI / 180.0;
+  }
+  else if (sdf->HasElement("homeLongitude"))
+  {
+    lon_home_ = sdf->Get<double>("homeLongitude");
+    lon_home_ = lon_home_ * M_PI / 180.0;
+  }
+  else
+  {
+    lon_home_ = kDefaultHomeLongitude;
+    ignwarn << "[gazebo_gps_plugin] Home longitude is set to " << lon_home_ << "\n";
   }
 
-  if (env_alt) {
+  if (env_alt)
+  {
     alt_home_ = std::stod(env_alt);
-    ignmsg << "[gazebo_gps_plugin] Home altitude is set to " << alt_home_ << ".\n";
-  } else if(_sdf->HasElement("homeAltitude")) {
-    gazebo::getSdfParam<double>(_sdf, "homeAltitude", alt_home_, alt_home_);
+    ignmsg << "[gazebo_gps_plugin] Home altitude is set to " << std::stod(env_alt) << ".\n";
   }
+  else if (sdf->HasElement("homeAltitude"))
+  {
+    alt_home_ = sdf->Get<double>("homeAltitude");
+    alt_home_ = alt_home_;
+  }
+  else
+  {
+    alt_home_ = kDefaultHomeAltitude;
+    ignwarn << "[gazebo_gps_plugin] Home altitude is set to " << alt_home_ << "\n";
+  }
+
+  if (sdf->HasElement("gpsTopic"))
+  {
+    gps_topic_ = sdf->Get<std::string>("gpsTopic");
+  }
+  else
+  {
+    gps_topic_ = kDefaultGpsTopic;
+    ignwarn << "[gazebo_gps_plugin] Using default gps topic " << gps_topic_ << "\n";
+  }
+
   // get random walk in XY plane
-  if (_sdf->HasElement("gpsXYRandomWalk")) {
-    gazebo::getSdfParam<double>(_sdf, "gpsXYRandomWalk", gps_xy_random_walk_, kDefaultGpsXYRandomWalk);
-  } else {
+  if (sdf->HasElement("gpsXYRandomWalk"))
+  {
+    gps_xy_random_walk_ = sdf->Get<double>("gpsXYRandomWalk");
+  }
+  else
+  {
+    gps_xy_random_walk_ = kDefaultGpsXYRandomWalk;
     ignwarn << "[gazebo_gps_plugin] Using default random walk in XY plane: "
-           << kDefaultGpsXYRandomWalk << "\n";
+            << gps_xy_random_walk_ << "\n";
   }
 
   // get random walk in Z
-  if (_sdf->HasElement("gpsZRandomWalk")) {
-    gazebo::getSdfParam<double>(_sdf, "gpsZRandomWalk", gps_z_random_walk_, kDefaultGpsZRandomWalk);
-  } else {
+  if (sdf->HasElement("gpsZRandomWalk"))
+  {
+    gps_z_random_walk_ = sdf->Get<double>("gpsZRandomWalk");
+  }
+  else
+  {
+    gps_z_random_walk_ = kDefaultGpsZRandomWalk;
     ignwarn << "[gazebo_gps_plugin] Using default random walk in Z: "
-           << kDefaultGpsZRandomWalk << "\n";
+            << gps_z_random_walk_ << "\n";
   }
 
   // get position noise density in XY plane
-  if (_sdf->HasElement("gpsXYNoiseDensity")) {
-    gazebo::getSdfParam<double>(_sdf, "gpsXYNoiseDensity", gps_xy_noise_density_, kDefaultGpsXYNoiseDensity);
-  } else {
+  if (sdf->HasElement("gpsXYNoiseDensity"))
+  {
+    gps_xy_noise_density_ = sdf->Get<double>("gpsXYNoiseDensity");
+  }
+  else
+  {
+    gps_xy_noise_density_ = kDefaultGpsXYNoiseDensity;
     ignwarn << "[gazebo_gps_plugin] Using default position noise density in XY plane: "
-           << kDefaultGpsXYNoiseDensity << "\n";
+            << gps_xy_noise_density_ << "\n";
   }
 
   // get position noise density in Z
-  if (_sdf->HasElement("gpsZNoiseDensity")) {
-    gazebo::getSdfParam<double>(_sdf, "gpsZNoiseDensity", gps_z_noise_density_, kDefaultGpsZNoiseDensity);
-  } else {
+  if (sdf->HasElement("gpsZNoiseDensity"))
+  {
+    gps_z_noise_density_ = sdf->Get<double>("gpsZNoiseDensity");
+  }
+  else
+  {
+    gps_z_noise_density_ = kDefaultGpsZNoiseDensity;
     ignwarn << "[gazebo_gps_plugin] Using default position noise density in Z: "
-           << kDefaultGpsZNoiseDensity << "\n";
+            << gps_z_noise_density_ << "\n";
   }
 
   // get velocity noise density in XY plane
-  if (_sdf->HasElement("gpsVXYNoiseDensity")) {
-    gazebo::getSdfParam<double>(_sdf, "gpsVXYNoiseDensity", gps_vxy_noise_density_, kDefaultGpsVXYNoiseDensity);
-  } else {
+  if (sdf->HasElement("gpsVXYNoiseDensity"))
+  {
+    gps_vxy_noise_density_ = sdf->Get<double>("gpsVXYNoiseDensity");
+  }
+  else
+  {
+    gps_vxy_noise_density_ = kDefaultGpsVXYNoiseDensity;
     ignwarn << "[gazebo_gps_plugin] Using default velocity noise density in XY plane: "
-           << kDefaultGpsVXYNoiseDensity << "\n";
+            << gps_vxy_noise_density_ << "\n";
   }
 
   // get velocity noise density in Z
-  if (_sdf->HasElement("gpsVZNoiseDensity")) {
-    gazebo::getSdfParam<double>(_sdf, "gpsVZNoiseDensity", gps_vz_noise_density_, kDefaultGpsVZNoiseDensity);
-  } else {
+  if (sdf->HasElement("gpsVZNoiseDensity"))
+  {
+    gps_vz_noise_density_ = sdf->Get<double>("gpsVZNoiseDensity");
+  }
+  else
+  {
+    gps_vz_noise_density_ = kDefaultGpsVZNoiseDensity;
     ignwarn << "[gazebo_gps_plugin] Using default velocity noise density in Z: "
-           << kDefaultGpsVZNoiseDensity << "\n";
+            << gps_vz_noise_density_ << "\n";
   }
 
   // get update rate
-  if (_sdf->HasElement("update_rate")) {
-    gazebo::getSdfParam<double>(_sdf, "update_rate", update_rate_, kDefaultUpdateRate);
-  } else {
-    update_rate_ = kDefaultUpdateRate;
-    ignwarn << "[gazebo_gps_plugin] Using default update rate of "
-           << kDefaultUpdateRate << "hz \n";
+  if (sdf->HasElement("pubRate"))
+  {
+    pub_rate_ = sdf->Get<unsigned int>("pubRate");
+  }
+  else
+  {
+    pub_rate_ = kDefaultPubRate;
+    ignwarn << "[gazebo_gps_plugin] Using default publication rate of " << pub_rate_ << " Hz\n";
   }
 
-   auto linkName = _sdf->Get<std::string>("link_name");
-    model_ = ignition::gazebo::Model(_entity);
-    // Get link entity
-    model_link_ = model_.LinkByName(_ecm, linkName);
+  link_name_ = sdf->Get<std::string>("link_name");
+}
 
-  if(!_ecm.EntityHasComponentType(model_link_, ignition::gazebo::components::WorldPose::typeId))
+void GpsPlugin::Configure(const ignition::gazebo::Entity &_entity,
+                          const std::shared_ptr<const sdf::Element> &_sdf,
+                          ignition::gazebo::EntityComponentManager &_ecm,
+                          ignition::gazebo::EventManager &_em)
+{
+
+  getSdfParams(_sdf);
+
+  model_ = ignition::gazebo::Model(_entity);
+  // Get link entity
+  model_link_ = model_.LinkByName(_ecm, link_name_);
+
+  if (!_ecm.EntityHasComponentType(model_link_, ignition::gazebo::components::WorldPose::typeId))
   {
     _ecm.CreateComponent(model_link_, ignition::gazebo::components::WorldPose());
   }
-  if(!_ecm.EntityHasComponentType(model_link_, ignition::gazebo::components::WorldLinearVelocity::typeId))
+  if (!_ecm.EntityHasComponentType(model_link_, ignition::gazebo::components::WorldLinearVelocity::typeId))
   {
     _ecm.CreateComponent(model_link_, ignition::gazebo::components::WorldLinearVelocity());
   }
+
+  pub_gps_ = this->node.Advertise<sensor_msgs::msgs::SITLGps>("/" + model_.Name(_ecm) + "/sensor" + gps_topic_);
 }
 
-
 void GpsPlugin::PreUpdate(const ignition::gazebo::UpdateInfo &_info,
-  ignition::gazebo::EntityComponentManager &_ecm) {
+                          ignition::gazebo::EntityComponentManager &_ecm)
+{
 }
 
 void GpsPlugin::PostUpdate(const ignition::gazebo::UpdateInfo &_info,
-    const ignition::gazebo::EntityComponentManager &_ecm) {
+                           const ignition::gazebo::EntityComponentManager &_ecm)
+{
   const std::chrono::steady_clock::duration current_time = _info.simTime;
   const double dt = std::chrono::duration<double>(current_time - last_pub_time_).count();
-  if (dt > 1.0 / update_rate_) {
+  if (dt > 1.0 / pub_rate_)
+  {
 
-    const ignition::gazebo::components::WorldPose* pComp = _ecm.Component<ignition::gazebo::components::WorldPose>(model_link_);
+    const ignition::gazebo::components::WorldPose *pComp = _ecm.Component<ignition::gazebo::components::WorldPose>(model_link_);
     const ignition::math::Pose3d T_W_I = pComp->Data();
     // Use the model world position for GPS
-    const ignition::math::Vector3d& pos_W_I = T_W_I.Pos();
-    const ignition::math::Quaterniond& att_W_I = T_W_I.Rot();
+    const ignition::math::Vector3d &pos_W_I = T_W_I.Pos();
+    const ignition::math::Quaterniond &att_W_I = T_W_I.Rot();
 
     // Use the models' world position for GPS velocity.
-    const ignition::gazebo::components::WorldLinearVelocity* vComp = _ecm.Component<ignition::gazebo::components::WorldLinearVelocity>(model_link_);
-    ignition::math::Vector3d velocity_current_W = vComp->Data();; // = model_->WorldLinearVel();
+    const ignition::gazebo::components::WorldLinearVelocity *vComp = _ecm.Component<ignition::gazebo::components::WorldLinearVelocity>(model_link_);
+    ignition::math::Vector3d velocity_current_W = vComp->Data();
+    ; // = model_->WorldLinearVel();
 
     ignition::math::Vector3d velocity_current_W_xy = velocity_current_W;
     velocity_current_W_xy.Z() = 0;
 
     // update noise parameters if gps_noise_ is set
-    if (gps_noise_) {
+    if (gps_noise_)
+    {
       noise_gps_pos_.X() = gps_xy_noise_density_ * sqrt(dt) * randn_(rand_);
       noise_gps_pos_.Y() = gps_xy_noise_density_ * sqrt(dt) * randn_(rand_);
       noise_gps_pos_.Z() = gps_z_noise_density_ * sqrt(dt) * randn_(rand_);
@@ -187,7 +260,8 @@ void GpsPlugin::PostUpdate(const ignition::gazebo::UpdateInfo &_info,
       random_walk_gps_.Y() = gps_xy_random_walk_ * sqrt(dt) * randn_(rand_);
       random_walk_gps_.Z() = gps_z_random_walk_ * sqrt(dt) * randn_(rand_);
     }
-    else {
+    else
+    {
       noise_gps_pos_.X() = 0.0;
       noise_gps_pos_.Y() = 0.0;
       noise_gps_pos_.Z() = 0.0;
@@ -208,13 +282,13 @@ void GpsPlugin::PostUpdate(const ignition::gazebo::UpdateInfo &_info,
     auto pos_with_noise = pos_W_I + noise_gps_pos_ + gps_bias_;
 
     auto latlon = reproject(pos_with_noise, lat_home_, lon_home_, alt_home_);
-    
+
     // fill SITLGps msg
     sensor_msgs::msgs::SITLGps gps_msg;
 
     gps_msg.set_time_usec(std::chrono::duration_cast<std::chrono::microseconds>(current_time).count());
-    gps_msg.set_time_utc_usec(std::chrono::duration_cast<std::chrono::microseconds>(current_time).count()); 
-    ///TODO: Add start time
+    gps_msg.set_time_utc_usec(std::chrono::duration_cast<std::chrono::microseconds>(current_time).count());
+    /// TODO: Add start time
 
     // @note Unfurtonately the Gazebo GpsSensor seems to provide bad readings,
     // starting to drift and leading to global position loss
