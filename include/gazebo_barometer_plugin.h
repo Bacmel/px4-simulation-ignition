@@ -53,19 +53,22 @@
 #include <ignition/gazebo/components/Name.hh>
 
 #include <Pressure.pb.h>
+#include <common.h>
 
 static constexpr auto kDefaultBarometerTopic = "/baro";
-static constexpr auto kDefaultPubRate = 50;    // [Hz]. Note: averages the supported Baro device ODR in PX4
-static constexpr auto kDefaultAltHome = 488.0; // altitude AMSL at Irchel Park, Zurich, Switzerland [m]
+static constexpr auto kDefaultPubRate = 50; // [Hz]. Note: averages the supported Baro device ODR in PX4
 
-// international standard atmosphere (troposphere model - valid up to 11km) see [1]
-static constexpr auto kDefaultTemperatureMsl = 288.15; // temperature at MSL [K] (15 [C])
-static constexpr auto kDefaultPressureMsl = 101325.0;  // pressure at MSL [Pa]
-static constexpr auto kDefaultLapseRate = 0.0065;      // reduction in temperature with altitude for troposphere [K/m]
-static constexpr auto kDefaultAirDensityMsl = 1.225;   // air density at MSL [kg/m^3]
+// International standard atmosphere (troposphere model - valid up to 11km) see [1]
+static constexpr auto kDefaultTemperatureMsl = 288.15; // Temperature at MSL [K] (15 [C])
+static constexpr auto kDefaultPressureMsl = 101325.0;  // Pressure at MSL [Pa]
+static constexpr auto kDefaultLapseRate = 0.0065;      // Reduction in temperature with altitude for troposphere [K/m]
+static constexpr auto kDefaultAirDensityMsl = 1.225;   // Air density at MSL [kg/m^3]
 static constexpr auto kDefaultAbsoluteZeroC = -273.15; // [C]
 
-// default values for baro pressure sensor random noise generator
+// Earth's gravity in Zurich (lat=+47.3667degN, lon=+8.5500degE, h=+500m, WGS84)
+static constexpr auto kDefaultGravityMagnitude = 9.8068;
+
+// Default values for baro pressure sensor random noise generator
 static constexpr auto kDefaultBaroRndY2 = 0.0;
 static constexpr auto kDefaultBaroRndUseLast = false;
 static constexpr auto kDefaultBaroDriftPaPerSec = 0.0;
@@ -101,7 +104,7 @@ namespace barometer_plugin
                     const ignition::gazebo::EntityComponentManager &_ecm) override;
 
   private:
-    void addNoise(double &absolute_pressure, double &pressure_altitude, const double &temperature_local, const double dt);
+    void addNoise(double &absolute_pressure, double &pressure_altitude, double &temperature_local, const double dt);
     void getSdfParams(const std::shared_ptr<const sdf::Element> &sdf);
 
     ignition::gazebo::Model model_{ignition::gazebo::kNullEntity};
@@ -117,15 +120,15 @@ namespace barometer_plugin
     std::normal_distribution<double> standard_normal_distribution_;
 
     ignition::math::Pose3d pose_model_start_;
-    ignition::math::Vector3d gravity_W_{ignition::math::Vector3d(0.0, 0.0, -9.8)};
-    double alt_home_{kDefaultAltHome};
+    double gravity_magnitude_{kDefaultGravityMagnitude};
+    double alt_home_{kDefaultHomeAltitude};
 
     ignition::transport::Node node;
     ignition::transport::Node::Publisher pub_baro_;
 
     sensor_msgs::msgs::Pressure baro_msg_;
 
-    // state variables for baro pressure sensor random noise generator
+    // State variables for baro pressure sensor random noise generator
     double baro_rnd_y2_{kDefaultBaroRndY2};
     bool baro_rnd_use_last_{kDefaultBaroRndUseLast};
     double baro_drift_pa_per_sec_{kDefaultBaroDriftPaPerSec};

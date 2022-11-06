@@ -1,4 +1,3 @@
-
 /****************************************************************************
  *
  *   Copyright (c) 2018 PX4 Development Team. All rights reserved.
@@ -63,6 +62,22 @@ BarometerPlugin::~BarometerPlugin()
 void BarometerPlugin::getSdfParams(const std::shared_ptr<const sdf::Element> &sdf)
 {
 
+  const char *env_alt = std::getenv("PX4_HOME_ALT");
+  if (env_alt)
+  {
+    alt_home_ = std::stod(env_alt);
+    ignmsg << "[gazebo_barometer_plugin] Home altitude is set to " << alt_home_ << " m\n";
+  }
+  else if (sdf->HasElement("homeAltitude"))
+  {
+    alt_home_ = sdf->Get<double>("homeAltitude");
+  }
+  else
+  {
+    alt_home_ = kDefaultHomeAltitude;
+    &ignwarn << "[gazebo_barometer_plugin] Using default home altitude of " << alt_home_ << " m\n";
+  }
+
   if (sdf->HasElement("pubRate"))
   {
     pub_rate_ = sdf->Get<unsigned int>("pubRate");
@@ -90,7 +105,7 @@ void BarometerPlugin::getSdfParams(const std::shared_ptr<const sdf::Element> &sd
   else
   {
     baro_drift_pa_per_sec_ = kDefaultBaroDriftPaPerSec;
-    ignwarn << "[gazebo_barometer_plugin] Using default barometer drift pa per seconde of " << baro_drift_pa_per_sec_ << "\n";
+    ignwarn << "[gazebo_barometer_plugin] Using default barometer drift per second of " << baro_drift_pa_per_sec_ << "\n";
   }
 
   link_name_ = sdf->Get<std::string>("link_name");
@@ -107,23 +122,36 @@ void BarometerPlugin::Configure(const ignition::gazebo::Entity &_entity,
   // Get link entity
   model_link_ = model_.LinkByName(_ecm, link_name_);
 
+  // Get initial pose of the model that the plugin is attached to
   if (!_ecm.EntityHasComponentType(model_link_, ignition::gazebo::components::WorldPose::typeId))
   {
     _ecm.CreateComponent(model_link_, ignition::gazebo::components::WorldPose());
   }
-  if (!_ecm.EntityHasComponentType(model_link_, ignition::gazebo::components::WorldLinearVelocity::typeId))
+  const ignition::gazebo::components::WorldPose *pComp = _ecm.Component<ignition::gazebo::components::WorldPose>(model_link_);
+  pose_model_start_ = pComp->Data();
+
+  // Get gravity of the world
+  if (!_ecm.EntityHasComponentType(model_link_, ignition::gazebo::components::Gravity::typeId))
   {
-    _ecm.CreateComponent(model_link_, ignition::gazebo::components::WorldLinearVelocity());
+    gravity_magnitude_ = kDefaultGravityMagnitude;
+  }
+  else
+  {
+    _ecm.CreateComponent(model_link_, ignition::gazebo::components::Gravity());
+    ignition::math::Vector3d gravity_W_ = _ecm.Component<ignition::gazebo::components::Gravity>(model_link_)->Data();
+    gravity_magnitude_ = gravity_W_.Length();
   }
 
-  pub_baro_ = this->node.Advertise<sensor_msgs::msgs::Pressure>("/" + model_.Name(_ecm) + "/sensor" + baro_topic_);
+  standard_normal_distribution_ = std::normal_distribution<double>(0.0, 1.0);
+
+  pub_baro_ = this->node.Advertise<sensor_msgs::msgs::Pressure>("/" + model_.Name(_ecm) + baro_topic_);
 }
 
 void BarometerPlugin::addNoise(double &absolute_pressure, double &pressure_altitude, const double &temperature_local, const double dt)
 {
   assert(dt > 0.0);
 
-  // generate Gaussian noise sequence using polar form of Box-Muller transformation
+  // Generate Gaussian noise sequence using polar form of Box-Muller transformation
   double y1;
   if (!baro_rnd_use_last_)
   {
@@ -135,14 +163,14 @@ void BarometerPlugin::addNoise(double &absolute_pressure, double &pressure_altit
       w = x1 * x1 + x2 * x2;
     } while (w >= 1.0);
     w = sqrt((-2.0 * log(w)) / w);
-    // calculate two values - the second value can be used next time because it is uncorrelated
+    // Calculate two values - the second value can be used next time because it is uncorrelated
     y1 = x1 * w;
     baro_rnd_y2_ = x2 * w;
     baro_rnd_use_last_ = true;
   }
   else
   {
-    // no need to repeat the calculation - use the second value from last update
+    // Use the second value from last update
     y1 = baro_rnd_y2_;
     baro_rnd_use_last_ = false;
   }
@@ -150,14 +178,17 @@ void BarometerPlugin::addNoise(double &absolute_pressure, double &pressure_altit
   // Apply noise and drift
   const double abs_pressure_noise = 1.0f * (double)y1; // 1 Pa RMS noise
   baro_drift_pa_ += baro_drift_pa_per_sec_ * dt;
-  absolute_pressure += abs_pressure_noise + baro_drift_pa_;
+  const double noise = abs_pressure_noise + baro_drift_pa_;
 
-  // calculate density using an ISA model for the tropsphere (valid up to 11km above MSL)
+  // Apply noise and drift
+  absolute_pressure += noise;
+
+  // Calculate density using an ISA model for the tropsphere (valid up to 11km above MSL)
   const double density_ratio = powf(kDefaultTemperatureMsl / temperature_local, 4.256f);
   const double rho = 1.225f / density_ratio;
 
-  // calculate pressure altitude including effect of pressure noise
-  pressure_altitude -= (abs_pressure_noise + baro_drift_pa_) / (gravity_W_.Length() * rho);
+  // Calculate pressure altitude including effect of pressure noise
+  pressure_altitude -= noise / (gravity_magnitude_ * rho);
 }
 
 void BarometerPlugin::PreUpdate(const ignition::gazebo::UpdateInfo &_info,
@@ -173,38 +204,35 @@ void BarometerPlugin::PostUpdate(const ignition::gazebo::UpdateInfo &_info,
 
   if (dt > 1.0 / pub_rate_)
   {
-    // get pose of the model that the plugin is attached to
+    // Get pose of the model that the plugin is attached to
     const ignition::gazebo::components::WorldPose *pComp = _ecm.Component<ignition::gazebo::components::WorldPose>(model_link_);
     const ignition::math::Pose3d pose_model_world = pComp->Data();
-
-    // const ignition::math::Pose3d pose_model_world;
-    // std::cout << "World Pose: " << pose_model_world.Pos().Z() << std::endl;
     ignition::math::Pose3d pose_model; // Z-component pose in local frame (relative to where it started)
     pose_model.Pos().Z() = pose_model_world.Pos().Z() - pose_model_start_.Pos().Z();
-    const double pose_n_z = -pose_model.Pos().Z(); // convert Z-component from ENU to NED
+    const double pose_n_z = -pose_model.Pos().Z(); // Convert Z-component from ENU to NED
 
-    // calculate abs_pressure using an ISA model for the tropsphere (valid up to 11km above MSL)
-    const double alt_msl = (double)alt_home_ - pose_n_z;
+    // Calculate abs_pressure using an ISA model for the tropsphere (valid up to 11km above MSL)
+    const double alt_msl = alt_home_ - pose_n_z;
     const double temperature_local = kDefaultTemperatureMsl - kDefaultLapseRate * alt_msl;
     const double pressure_ratio = powf(kDefaultTemperatureMsl / temperature_local, 5.256f);
-    double absolute_pressure = kDefaultPressureMsl / pressure_ratio;
-    double pressure_altitude = alt_msl;
+    const double absolute_pressure = kDefaultPressureMsl / pressure_ratio;
 
-    // add noise
-    addNoise(absolute_pressure, pressure_altitude, temperature_local, dt);
-
-    // convert to hPa
-    const double absolute_pressure_noisy_hpa = absolute_pressure * 0.01f;
+    // Add noise
+    double absolute_pressure_noisy = absolute_pressure;
+    double pressure_altitude_noisy = alt_msl;
+    double temperature_local_noisy = temperature_local;
+    addNoise(absolute_pressure_noisy, pressure_altitude_noisy, temperature_local_noisy, dt);
 
     // Fill baro msg
-    baro_msg_.set_absolute_pressure(absolute_pressure_noisy_hpa);
-    baro_msg_.set_pressure_altitude(pressure_altitude);
-    baro_msg_.set_temperature(temperature_local + kDefaultAbsoluteZeroC); // calculate temperature in Celsius
     baro_msg_.set_time_usec(std::chrono::duration_cast<std::chrono::microseconds>(current_time).count());
 
-    last_pub_time_ = current_time;
+    baro_msg_.set_absolute_pressure(absolute_pressure_noisy * 0.01f); // Convert to hPa
+    baro_msg_.set_pressure_altitude(pressure_altitude_noisy);
+    baro_msg_.set_temperature(temperature_local_noisy + kDefaultAbsoluteZeroC); // Calculate temperature in Celsius
 
     // Publish baro msg
     pub_baro_.Publish(baro_msg_);
+
+    last_pub_time_ = current_time;
   }
 }
