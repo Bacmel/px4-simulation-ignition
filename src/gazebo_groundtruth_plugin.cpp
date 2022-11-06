@@ -167,7 +167,7 @@ void GroundtruthPlugin::PostUpdate(const ignition::gazebo::UpdateInfo &_info,
     velocity_current_W_xy.Z() = 0;
 
     // fill Groundtruth msg
-    gt_msg_.set_time_usec(current_time.Double() * 1e6);
+    gt_msg_.set_time_usec(std::chrono::duration_cast<std::chrono::microseconds>(current_time).count());
     gt_msg_.set_latitude_rad(latlon_gt.first);
     gt_msg_.set_longitude_rad(latlon_gt.second);
     gt_msg_.set_altitude(pos_W_I.Z() + alt_home_);

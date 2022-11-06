@@ -48,7 +48,6 @@
 #include <ignition/transport/Node.hh>
 #include <ignition/gazebo/Model.hh>
 #include <ignition/gazebo/Util.hh>
-#include <ignition/gazebo/components/LinearVelocity.hh>
 #include <ignition/gazebo/components/Pose.hh>
 #include <ignition/gazebo/components/Name.hh>
 
