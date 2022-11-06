@@ -84,12 +84,22 @@ target_link_libraries(gazebo_gps_plugin
   PRIVATE gazebo_mavlink_sensor_msgs
 )
 
+add_library(gazebo_grountruth_plugin SHARED src/gazebo_grountruth_plugin.cpp)
+set_property(TARGET gazebo_grountruth_plugin PROPERTY CXX_STANDARD 17)
+target_link_libraries(gazebo_grountruth_plugin
+  PRIVATE ${Boost_LIBRARIES}
+  PRIVATE ignition-plugin${IGN_PLUGIN_VER}::ignition-plugin${IGN_PLUGIN_VER}
+  PRIVATE ignition-gazebo${GAZEBO_VERSION}::ignition-gazebo${GAZEBO_VERSION}
+  PRIVATE gazebo_mavlink_sensor_msgs
+)
+
 include(GNUInstallDirs)
 install(TARGETS
   mavlink_sitl_ign_gazebo
   gazebo_barometer_plugin
   gazebo_magnetometer_plugin
   gazebo_gps_plugin
+  gazebo_grountruth_plugin
   gazebo_mavlink_sensor_msgs
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
   )
