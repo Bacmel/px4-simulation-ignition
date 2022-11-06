@@ -75,7 +75,7 @@ void BarometerPlugin::getSdfParams(const std::shared_ptr<const sdf::Element> &sd
   else
   {
     alt_home_ = kDefaultHomeAltitude;
-    &ignwarn << "[gazebo_barometer_plugin] Using default home altitude of " << alt_home_ << " m\n";
+    ignwarn << "[gazebo_barometer_plugin] Using default home altitude of " << alt_home_ << " m\n";
   }
 
   if (sdf->HasElement("pubRate"))
@@ -205,8 +205,8 @@ void BarometerPlugin::PostUpdate(const ignition::gazebo::UpdateInfo &_info,
   if (dt > 1.0 / pub_rate_)
   {
     // Get pose of the model that the plugin is attached to
-    const ignition::gazebo::components::WorldPose *pComp = _ecm.Component<ignition::gazebo::components::WorldPose>(model_link_);
-    const ignition::math::Pose3d pose_model_world = pComp->Data();
+    const ignition::gazebo::components::WorldPose *ppose_model_world = _ecm.Component<ignition::gazebo::components::WorldPose>(model_link_);
+    const ignition::math::Pose3d pose_model_world = ppose_model_world->Data();
     ignition::math::Pose3d pose_model; // Z-component pose in local frame (relative to where it started)
     pose_model.Pos().Z() = pose_model_world.Pos().Z() - pose_model_start_.Pos().Z();
     const double pose_n_z = -pose_model.Pos().Z(); // Convert Z-component from ENU to NED
