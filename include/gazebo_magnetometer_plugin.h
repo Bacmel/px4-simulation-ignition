@@ -42,10 +42,8 @@
 #define MAGNETOMETER_PLUGIN_HH_
 
 #include <random>
-#include <string>
 
 #include <Eigen/Core>
-#include <boost/shared_array.hpp>
 
 #include <MagneticField.pb.h>
 #include <Groundtruth.pb.h>
@@ -54,72 +52,83 @@
 #include <ignition/math.hh>
 #include <ignition/gazebo/Model.hh>
 #include <ignition/gazebo/Util.hh>
-#include <ignition/gazebo/components/LinearVelocity.hh>
 #include <ignition/gazebo/System.hh>
 #include <ignition/gazebo/components/Pose.hh>
+#include <ignition/gazebo/components/Name.hh>
 
 #include "geo_mag_declination.h"
 #include <common.h>
 
-namespace magnetometer_plugin {
+namespace magnetometer_plugin
+{
 
-  static constexpr auto kDefaultMagnetometerTopic = "mag";
+  static constexpr auto kDefaultMagnetometerTopic = "/mag";
   static constexpr auto kDefaultPubRate = 100.0; // [Hz]. Note: corresponds to most of the mag devices supported in PX4
 
   // Default values for use with ADIS16448 IMU
-  static constexpr auto kDefaultNoiseDensity = 0.4*1e-3; // [gauss / sqrt(hz)]
-  static constexpr auto kDefaultRandomWalk = 6.4*1e-6; // [gauss * sqrt(hz)]
+  static constexpr auto kDefaultNoiseDensity = 0.4 * 1e-3;    // [gauss / sqrt(hz)]
+  static constexpr auto kDefaultRandomWalk = 6.4 * 1e-6;      // [gauss * sqrt(hz)]
   static constexpr auto kDefaultBiasCorrelationTime = 6.0e+2; // [s]
 
-  typedef const boost::shared_ptr<const sensor_msgs::msgs::Groundtruth> GtPtr;
+  class IGNITION_GAZEBO_VISIBLE MagnetometerPlugin :
+      // This is class a system.
+      public ignition::gazebo::System,
+      public ignition::gazebo::ISystemConfigure,
+      public ignition::gazebo::ISystemPreUpdate,
+      public ignition::gazebo::ISystemPostUpdate
+  {
+  public:
+    MagnetometerPlugin();
 
-  class IGNITION_GAZEBO_VISIBLE MagnetometerPlugin:
-    // This is class a system.
-    public ignition::gazebo::System,
-    public ignition::gazebo::ISystemConfigure,
-    public ignition::gazebo::ISystemPreUpdate,
-    public ignition::gazebo::ISystemPostUpdate
-    {
-    public: MagnetometerPlugin();
-    public: ~MagnetometerPlugin() override;
-    public: void Configure(const ignition::gazebo::Entity &_entity,
-                            const std::shared_ptr<const sdf::Element> &_sdf,
-                            ignition::gazebo::EntityComponentManager &_ecm,
-                            ignition::gazebo::EventManager &/*_eventMgr*/);
-    public: void PreUpdate(const ignition::gazebo::UpdateInfo &_info,
-                ignition::gazebo::EntityComponentManager &_ecm) override;
-    public: void PostUpdate(const ignition::gazebo::UpdateInfo &_info,
-                const ignition::gazebo::EntityComponentManager &_ecm) override;
+  public:
+    ~MagnetometerPlugin() override;
 
-    private:
-      void addNoise(Eigen::Vector3d* magnetic_field, const double dt);
-      void GroundtruthCallback(const sensor_msgs::msgs::Groundtruth& gt_msg);
-      void getSdfParams(const std::shared_ptr<const sdf::Element> &sdf);
+  public:
+    void Configure(const ignition::gazebo::Entity &_entity,
+                   const std::shared_ptr<const sdf::Element> &_sdf,
+                   ignition::gazebo::EntityComponentManager &_ecm,
+                   ignition::gazebo::EventManager & /*_eventMgr*/);
 
-      ignition::gazebo::Model model_{ignition::gazebo::kNullEntity};
-      ignition::gazebo::Entity model_link_{ignition::gazebo::kNullEntity};
+  public:
+    void PreUpdate(const ignition::gazebo::UpdateInfo &_info,
+                   ignition::gazebo::EntityComponentManager &_ecm) override;
 
-      std::string mag_topic_;
-      ignition::transport::Node node;
-      ignition::transport::Node::Publisher pub_mag_;
-      std::string gt_sub_topic_;
+  public:
+    void PostUpdate(const ignition::gazebo::UpdateInfo &_info,
+                    const ignition::gazebo::EntityComponentManager &_ecm) override;
 
-      double groundtruth_lat_rad_;
-      double groundtruth_lon_rad_;
+  private:
+    void addNoise(Eigen::Vector3d *magnetic_field, const double dt);
+    void GroundtruthCallback(const sensor_msgs::msgs::Groundtruth &gt_msg);
+    void getSdfParams(const std::shared_ptr<const sdf::Element> &sdf);
 
-      sensor_msgs::msgs::MagneticField mag_message_;
+    ignition::gazebo::Model model_{ignition::gazebo::kNullEntity};
+    ignition::gazebo::Entity model_link_{ignition::gazebo::kNullEntity};
 
-      std::chrono::steady_clock::duration last_time_{0};
-      std::chrono::steady_clock::duration last_pub_time_{0};
-      unsigned int pub_rate_;
-      double noise_density_;
-      double random_walk_;
-      double bias_correlation_time_;
+    std::string link_name_;
+    std::string mag_topic_{kDefaultMagnetometerTopic};
+    unsigned int pub_rate_{kDefaultPubRate};
 
-      Eigen::Vector3d bias_;
+    ignition::transport::Node node;
+    ignition::transport::Node::Publisher pub_mag_;
 
-      std::default_random_engine random_generator_;
-      std::normal_distribution<double> standard_normal_distribution_;
+    sensor_msgs::msgs::MagneticField mag_message_;
+
+    double groundtruth_lat_rad_{0.0};
+    double groundtruth_lon_rad_{0.0};
+
+    std::chrono::steady_clock::duration last_pub_time_{0};
+
+    std::default_random_engine random_generator_;
+    std::normal_distribution<double> standard_normal_distribution_;
+
+    // State variables for magnetometer sensor random noise generator
+    double noise_density_;
+    double random_walk_;
+    double bias_correlation_time_;
+
+    Eigen::Vector3d bias_;
+
   }; // class MagnetometerPlugin
-}  // namespace gazebo
+} // namespace gazebo
 #endif // MAGNETOMETER_PLUGIN_HH_
