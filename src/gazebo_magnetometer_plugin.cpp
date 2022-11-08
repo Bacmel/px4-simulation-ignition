@@ -51,7 +51,7 @@ IGNITION_ADD_PLUGIN(
 
 using namespace magnetometer_plugin;
 
-MagnetometerPlugin::MagnetometerPlugin() :
+MagnetometerPlugin::MagnetometerPlugin()
 {
 }
 
@@ -122,6 +122,10 @@ void MagnetometerPlugin::Configure(const ignition::gazebo::Entity &_entity,
 {
   getSdfParams(_sdf);
 
+  model_ = ignition::gazebo::Model(_entity);
+  // Get link entity
+  model_link_ = model_.LinkByName(_ecm, link_name_);
+
   pub_mag_ = this->node.Advertise<sensor_msgs::msgs::MagneticField>("/" + model_.Name(_ecm) + mag_topic_);
   node.Subscribe("/" + model_.Name(_ecm) + "/grountruth", &MagnetometerPlugin::GroundtruthCallback, this);
 
@@ -144,9 +148,6 @@ void MagnetometerPlugin::Configure(const ignition::gazebo::Entity &_entity,
       mag_message_.add_magnetic_field_covariance(0.0);
     }
   }
-  model_ = ignition::gazebo::Model(_entity);
-  // Get link entity
-  model_link_ = model_.LinkByName(_ecm, link_name_);
 
   if (!_ecm.EntityHasComponentType(model_link_, ignition::gazebo::components::WorldPose::typeId))
   {

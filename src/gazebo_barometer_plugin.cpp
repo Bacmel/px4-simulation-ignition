@@ -147,7 +147,7 @@ void BarometerPlugin::Configure(const ignition::gazebo::Entity &_entity,
   pub_baro_ = this->node.Advertise<sensor_msgs::msgs::Pressure>("/" + model_.Name(_ecm) + baro_topic_);
 }
 
-void BarometerPlugin::addNoise(double &absolute_pressure, double &pressure_altitude, const double &temperature_local, const double dt)
+void BarometerPlugin::addNoise(double &absolute_pressure, double &pressure_altitude, double &temperature_local, const double dt)
 {
   assert(dt > 0.0);
 

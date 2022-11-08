@@ -110,7 +110,7 @@ void GroundtruthPlugin::getSdfParams(const std::shared_ptr<const sdf::Element> &
     else
     {
         alt_home_ = kDefaultHomeAltitude;
-        &ignwarn << "[gazebo_groundtruth_plugin] Using default home altitude of " << alt_home_ << " m\n";
+        ignwarn << "[gazebo_groundtruth_plugin] Using default home altitude of " << alt_home_ << " m\n";
     }
 
     link_name_ = sdf->Get<std::string>("link_name");
@@ -153,8 +153,8 @@ void GroundtruthPlugin::PostUpdate(const ignition::gazebo::UpdateInfo &_info,
     const ignition::gazebo::components::WorldPose *pT_W_I = _ecm.Component<ignition::gazebo::components::WorldPose>(model_link_);
     const ignition::math::Pose3d T_W_I = pT_W_I->Data();
     // Use the models world position and attitude for groundtruth
-    ignition::math::Vector3d &pos_W_I = T_W_I.Pos();
-    ignition::math::Quaterniond &att_W_I = T_W_I.Rot();
+    ignition::math::Vector3d pos_W_I = T_W_I.Pos();
+    ignition::math::Quaterniond att_W_I = T_W_I.Rot();
 
     // reproject position into geographic coordinates
     auto latlon_gt = reproject(pos_W_I, lat_home_, lon_home_, alt_home_);

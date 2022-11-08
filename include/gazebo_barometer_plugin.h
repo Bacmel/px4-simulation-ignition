@@ -50,28 +50,29 @@
 #include <ignition/gazebo/Util.hh>
 #include <ignition/gazebo/components/Pose.hh>
 #include <ignition/gazebo/components/Name.hh>
+#include <ignition/gazebo/components/Gravity.hh>
 
 #include <Pressure.pb.h>
 #include <common.h>
 
 static constexpr auto kDefaultBarometerTopic = "/baro";
-static constexpr auto kDefaultPubRate = 50; // [Hz]. Note: averages the supported Baro device ODR in PX4
+static constexpr unsigned int kDefaultPubRate = 50; // [Hz]. Note: averages the supported Baro device ODR in PX4
 
 // International standard atmosphere (troposphere model - valid up to 11km) see [1]
-static constexpr auto kDefaultTemperatureMsl = 288.15; // Temperature at MSL [K] (15 [C])
-static constexpr auto kDefaultPressureMsl = 101325.0;  // Pressure at MSL [Pa]
-static constexpr auto kDefaultLapseRate = 0.0065;      // Reduction in temperature with altitude for troposphere [K/m]
-static constexpr auto kDefaultAirDensityMsl = 1.225;   // Air density at MSL [kg/m^3]
-static constexpr auto kDefaultAbsoluteZeroC = -273.15; // [C]
+static constexpr double kDefaultTemperatureMsl = 288.15; // Temperature at MSL [K] (15 [C])
+static constexpr double kDefaultPressureMsl = 101325.0;  // Pressure at MSL [Pa]
+static constexpr double kDefaultLapseRate = 0.0065;      // Reduction in temperature with altitude for troposphere [K/m]
+static constexpr double kDefaultAirDensityMsl = 1.225;   // Air density at MSL [kg/m^3]
+static constexpr double kDefaultAbsoluteZeroC = -273.15; // [C]
 
 // Earth's gravity in Zurich (lat=+47.3667degN, lon=+8.5500degE, h=+500m, WGS84)
-static constexpr auto kDefaultGravityMagnitude = 9.8068;
+static constexpr double kDefaultGravityMagnitude = 9.8068;
 
 // Default values for baro pressure sensor random noise generator
-static constexpr auto kDefaultBaroRndY2 = 0.0;
-static constexpr auto kDefaultBaroRndUseLast = false;
-static constexpr auto kDefaultBaroDriftPaPerSec = 0.0;
-static constexpr auto kDefaultBaroDriftPa = 0.0;
+static constexpr double kDefaultBaroRndY2 = 0.0;
+static constexpr bool kDefaultBaroRndUseLast = false;
+static constexpr double kDefaultBaroDriftPaPerSec = 0.0;
+static constexpr double kDefaultBaroDriftPa = 0.0;
 
 namespace barometer_plugin
 {

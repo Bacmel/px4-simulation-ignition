@@ -63,12 +63,12 @@ namespace magnetometer_plugin
 {
 
   static constexpr auto kDefaultMagnetometerTopic = "/mag";
-  static constexpr auto kDefaultPubRate = 100.0; // [Hz]. Note: corresponds to most of the mag devices supported in PX4
+  static constexpr unsigned int kDefaultPubRate = 100.0; // [Hz]. Note: corresponds to most of the mag devices supported in PX4
 
   // Default values for use with ADIS16448 IMU
-  static constexpr auto kDefaultNoiseDensity = 0.4 * 1e-3;    // [gauss / sqrt(hz)]
-  static constexpr auto kDefaultRandomWalk = 6.4 * 1e-6;      // [gauss * sqrt(hz)]
-  static constexpr auto kDefaultBiasCorrelationTime = 6.0e+2; // [s]
+  static constexpr double kDefaultNoiseDensity = 0.4 * 1e-3;    // [gauss / sqrt(hz)]
+  static constexpr double kDefaultRandomWalk = 6.4 * 1e-6;      // [gauss * sqrt(hz)]
+  static constexpr double kDefaultBiasCorrelationTime = 6.0e+2; // [s]
 
   class IGNITION_GAZEBO_VISIBLE MagnetometerPlugin :
       // This is class a system.
