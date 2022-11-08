@@ -39,18 +39,25 @@
 #include <ignition/transport/Node.hh>
 
 #include <SITLGps.pb.h>
+#include <Groundtruth.pb.h>
+
 #include <common.h>
 
 static constexpr auto kDefaultGpsTopic = "/gps";
+static constexpr double kDefaultPubRate = 5.0; // hz
 
-static constexpr auto kDefaultPubRate = 5.0;              // hz
-static constexpr auto kDefaultGpsXYRandomWalk = 2.0;      // (m/s) / sqrt(hz)
-static constexpr auto kDefaultGpsZRandomWalk = 4.0;       // (m/s) / sqrt(hz)
-static constexpr auto kDefaultGpsXYNoiseDensity = 2.0e-4; // (m) / sqrt(hz)
-static constexpr auto kDefaultGpsZNoiseDensity = 4.0e-4;  // (m) / sqrt(hz)
-static constexpr auto kDefaultGpsVXYNoiseDensity = 0.2;   // (m/s) / sqrt(hz)
-static constexpr auto kDefaultGpsVZNoiseDensity = 0.4;    // (m/s) / sqrt(hz)
-static constexpr auto kDefaultGpsNoise = false;
+// gps delay related
+static constexpr double kDefaultGpsDelay = 0.12; // 120 ms
+static constexpr int kDefaultGpsBufferSizeMax = 1000;
+
+static constexpr double kDefaultGpsCorrelationTime = 60.0;  // s
+static constexpr double kDefaultGpsXYRandomWalk = 2.0;      // (m/s) / sqrt(hz)
+static constexpr double kDefaultGpsZRandomWalk = 4.0;       // (m/s) / sqrt(hz)
+static constexpr double kDefaultGpsXYNoiseDensity = 2.0e-4; // (m) / sqrt(hz)
+static constexpr double kDefaultGpsZNoiseDensity = 4.0e-4;  // (m) / sqrt(hz)
+static constexpr double kDefaultGpsVXYNoiseDensity = 0.2;   // (m/s) / sqrt(hz)
+static constexpr double kDefaultGpsVZNoiseDensity = 0.4;    // (m/s) / sqrt(hz)
+static constexpr bool kDefaultGpsNoise = false;
 
 namespace gps_plugin
 {
@@ -82,6 +89,8 @@ namespace gps_plugin
                     const ignition::gazebo::EntityComponentManager &_ecm) override;
 
   private:
+    void addNoise(double &lat, double &lon, double &alt, double &vel_east, double &vel_north, double &vel_up, const double dt);
+    void GroundtruthCallback(const sensor_msgs::msgs::Groundtruth &gt_msg);
     void getSdfParams(const std::shared_ptr<const sdf::Element> &sdf);
 
     ignition::gazebo::Model model_{ignition::gazebo::kNullEntity};
@@ -89,8 +98,7 @@ namespace gps_plugin
 
     std::chrono::steady_clock::duration last_pub_time_{0};
 
-    std::default_random_engine random_generator_;
-    std::normal_distribution<float> standard_normal_distribution_;
+    sensor_msgs::msgs::SITLGps gps_message_;
 
     ignition::transport::Node node;
     ignition::transport::Node::Publisher pub_gps_;
@@ -104,16 +112,15 @@ namespace gps_plugin
     // Home defaults to Zurich Irchel Park
     // @note The home position can be specified using the environment variables:
     // PX4_HOME_LAT, PX4_HOME_LON, and PX4_HOME_ALT
-    double lat_home_ = kDefaultHomeLatitude;
-    double lon_home_ = kDefaultHomeLongitude;
-    double alt_home_ = kDefaultHomeAltitude;
-    double world_latitude_ = 0.0;
-    double world_longitude_ = 0.0;
-    double world_altitude_ = 0.0;
+    double lat_home_{kDefaultHomeLatitude};
+    double lon_home_{kDefaultHomeLongitude};
+    double alt_home_{kDefaultHomeAltitude};
+
+    std::chrono::steady_clock::duration groundtruth_last_time_{0};
 
     // gps delay related
-    static constexpr double gps_delay_ = 0.12; // 120 ms
-    static constexpr int gps_buffer_size_max_ = 1000;
+    double gps_delay_{kDefaultGpsDelay};
+    int gps_buffer_size_max_{kDefaultGpsBufferSizeMax};
     std::queue<sensor_msgs::msgs::SITLGps> gps_delay_buffer_;
 
     ignition::math::Vector3d gps_bias_;
@@ -125,11 +132,13 @@ namespace gps_plugin
 
     // gps noise parameters
     bool gps_noise_{kDefaultGpsNoise};
-    double std_xy_; // meters
-    double std_z_;  // meters
-    std::default_random_engine rand_;
-    std::normal_distribution<float> randn_;
-    static constexpr const double gps_corellation_time_ = 60.0; // s
+
+    std::default_random_engine random_generator_;
+    std::normal_distribution<double> standard_normal_distribution_;
+    double std_xy_{1.0}; // meters
+    double std_z_{1.0};  // meters
+
+    double gps_correlation_time_{kDefaultGpsCorrelationTime};
     double gps_xy_random_walk_{kDefaultGpsXYRandomWalk};
     double gps_z_random_walk_{kDefaultGpsZRandomWalk};
     double gps_xy_noise_density_{kDefaultGpsXYNoiseDensity};
