@@ -47,59 +47,6 @@ GpsPlugin::~GpsPlugin()
 
 void GpsPlugin::getSdfParams(const std::shared_ptr<const sdf::Element> &sdf)
 {
-  // Use environment variables if set for home position.
-  const char *env_lat = std::getenv("PX4_HOME_LAT");
-  const char *env_lon = std::getenv("PX4_HOME_LON");
-  const char *env_alt = std::getenv("PX4_HOME_ALT");
-
-  if (env_lat)
-  {
-    lat_home_ = std::stod(env_lat) * M_PI / 180.0;
-    ignmsg << "[gazebo_gps_plugin] Home latitude is set to " << std::stod(env_lat) << ".\n";
-  }
-  else if (sdf->HasElement("homeLatitude"))
-  {
-    lat_home_ = sdf->Get<double>("homeLatitude");
-    lat_home_ = lat_home_ * M_PI / 180.0;
-  }
-  else
-  {
-    lat_home_ = kDefaultHomeLatitude;
-    ignwarn << "[gazebo_gps_plugin] Home latitude is set to " << lat_home_ << "\n";
-  }
-
-  if (env_lon)
-  {
-    lon_home_ = std::stod(env_lon) * M_PI / 180.0;
-    ignmsg << "[gazebo_gps_plugin] Home longitude is set to " << std::stod(env_lon) << ".\n";
-  }
-  else if (sdf->HasElement("homeLongitude"))
-  {
-    lon_home_ = sdf->Get<double>("homeLongitude");
-    lon_home_ = lon_home_ * M_PI / 180.0;
-  }
-  else
-  {
-    lon_home_ = kDefaultHomeLongitude;
-    ignwarn << "[gazebo_gps_plugin] Home longitude is set to " << lon_home_ << "\n";
-  }
-
-  if (env_alt)
-  {
-    alt_home_ = std::stod(env_alt);
-    ignmsg << "[gazebo_gps_plugin] Home altitude is set to " << std::stod(env_alt) << ".\n";
-  }
-  else if (sdf->HasElement("homeAltitude"))
-  {
-    alt_home_ = sdf->Get<double>("homeAltitude");
-    alt_home_ = alt_home_;
-  }
-  else
-  {
-    alt_home_ = kDefaultHomeAltitude;
-    ignwarn << "[gazebo_gps_plugin] Home altitude is set to " << alt_home_ << "\n";
-  }
-
   if (sdf->HasElement("gpsTopic"))
   {
     gps_topic_ = sdf->Get<std::string>("gpsTopic");
@@ -276,16 +223,17 @@ void GpsPlugin::addNoise(double &lat, double &lon, double &alt, double &vel_east
   // update noise parameters if gps_noise_ is set
   if (gps_noise_)
   {
-    auto bw = 1 / sqrt(dt);
-    noise_gps_pos_.X() = gps_xy_noise_density_ * bw * standard_normal_distribution_(random_generator_);
-    noise_gps_pos_.Y() = gps_xy_noise_density_ * bw * standard_normal_distribution_(random_generator_);
-    noise_gps_pos_.Z() = gps_z_noise_density_ * bw * standard_normal_distribution_(random_generator_);
-    noise_gps_vel_.X() = gps_vxy_noise_density_ * bw * standard_normal_distribution_(random_generator_);
-    noise_gps_vel_.Y() = gps_vxy_noise_density_ * bw * standard_normal_distribution_(random_generator_);
-    noise_gps_vel_.Z() = gps_vz_noise_density_ * bw * standard_normal_distribution_(random_generator_);
-    random_walk_gps_.X() = gps_xy_random_walk_ * bw * standard_normal_distribution_(random_generator_);
-    random_walk_gps_.Y() = gps_xy_random_walk_ * bw * standard_normal_distribution_(random_generator_);
-    random_walk_gps_.Z() = gps_z_random_walk_ * bw * standard_normal_distribution_(random_generator_);
+    auto rt = sqrt(dt); // square root of time
+    auto bandwidth = 1 / rt; // square root of sampling rate
+    noise_gps_pos_.X() = gps_xy_noise_density_ * bandwidth * standard_normal_distribution_(random_generator_);
+    noise_gps_pos_.Y() = gps_xy_noise_density_ * bandwidth * standard_normal_distribution_(random_generator_);
+    noise_gps_pos_.Z() = gps_z_noise_density_ * bandwidth * standard_normal_distribution_(random_generator_);
+    noise_gps_vel_.X() = gps_vxy_noise_density_ * bandwidth * standard_normal_distribution_(random_generator_);
+    noise_gps_vel_.Y() = gps_vxy_noise_density_ * bandwidth * standard_normal_distribution_(random_generator_);
+    noise_gps_vel_.Z() = gps_vz_noise_density_ * bandwidth * standard_normal_distribution_(random_generator_);
+    random_walk_gps_.X() = gps_xy_random_walk_ * rt * standard_normal_distribution_(random_generator_);
+    random_walk_gps_.Y() = gps_xy_random_walk_ * rt * standard_normal_distribution_(random_generator_);
+    random_walk_gps_.Z() = gps_z_random_walk_ * rt * standard_normal_distribution_(random_generator_);
   }
   else
   {

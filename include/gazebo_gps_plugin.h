@@ -51,13 +51,13 @@ static constexpr double kDefaultGpsDelay = 0.12; // 120 ms
 static constexpr int kDefaultGpsBufferSizeMax = 1000;
 
 static constexpr double kDefaultGpsCorrelationTime = 60.0;  // s
-static constexpr double kDefaultGpsXYRandomWalk = 2.0;      // (m/s) / sqrt(hz)
-static constexpr double kDefaultGpsZRandomWalk = 4.0;       // (m/s) / sqrt(hz)
+static constexpr double kDefaultGpsXYRandomWalk = 2.0;      // (m/s) / sqrt(s)
+static constexpr double kDefaultGpsZRandomWalk = 4.0;       // (m/s) / sqrt(s)
 static constexpr double kDefaultGpsXYNoiseDensity = 2.0e-4; // (m) / sqrt(hz)
 static constexpr double kDefaultGpsZNoiseDensity = 4.0e-4;  // (m) / sqrt(hz)
 static constexpr double kDefaultGpsVXYNoiseDensity = 0.2;   // (m/s) / sqrt(hz)
 static constexpr double kDefaultGpsVZNoiseDensity = 0.4;    // (m/s) / sqrt(hz)
-static constexpr bool kDefaultGpsNoise = false;
+static constexpr bool kDefaultGpsNoise = true;
 
 namespace gps_plugin
 {
@@ -109,13 +109,6 @@ namespace gps_plugin
 
     std::mutex data_mutex_;
 
-    // Home defaults to Zurich Irchel Park
-    // @note The home position can be specified using the environment variables:
-    // PX4_HOME_LAT, PX4_HOME_LON, and PX4_HOME_ALT
-    double lat_home_{kDefaultHomeLatitude};
-    double lon_home_{kDefaultHomeLongitude};
-    double alt_home_{kDefaultHomeAltitude};
-
     std::chrono::steady_clock::duration groundtruth_last_time_{0};
 
     // gps delay related
@@ -127,8 +120,6 @@ namespace gps_plugin
     ignition::math::Vector3d noise_gps_pos_;
     ignition::math::Vector3d noise_gps_vel_;
     ignition::math::Vector3d random_walk_gps_;
-    ignition::math::Vector3d gravity_W_;
-    ignition::math::Vector3d velocity_prev_W_;
 
     // gps noise parameters
     bool gps_noise_{kDefaultGpsNoise};
