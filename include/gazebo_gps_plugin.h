@@ -117,9 +117,9 @@ namespace gps_plugin
     std::queue<sensor_msgs::msgs::SITLGps> gps_delay_buffer_;
 
     ignition::math::Vector3d gps_bias_;
-    ignition::math::Vector3d noise_gps_pos_;
-    ignition::math::Vector3d noise_gps_vel_;
-    ignition::math::Vector3d random_walk_gps_;
+    ignition::math::Vector3d pos_noise_gps_;
+    ignition::math::Vector3d vel_noise_gps_;
+    ignition::math::Vector3d driven_noise_;
 
     // gps noise parameters
     bool gps_noise_{kDefaultGpsNoise};
