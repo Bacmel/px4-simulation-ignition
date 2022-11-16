@@ -138,12 +138,6 @@ void GazeboMavlinkInterface::Configure(const ignition::gazebo::Entity &_entity,
   // // Listen to Ctrl+C / SIGINT.
   sigIntConnection_ = _em.Connect<ignition::gazebo::events::Stop>(std::bind(&GazeboMavlinkInterface::onSigInt, this));
 
-  // Subscribe to messages of other plugins.
-  node.Subscribe("/imu", &GazeboMavlinkInterface::ImuCallback, this);
-  node.Subscribe("/world/quadcopter/model/X3/link/base_link/sensor/barometer", &GazeboMavlinkInterface::BarometerCallback, this);
-  node.Subscribe("/world/quadcopter/model/X3/link/base_link/sensor/magnetometer", &GazeboMavlinkInterface::MagnetometerCallback, this);
-  node.Subscribe("/world/quadcopter/model/X3/link/base_link/sensor/gps", &GazeboMavlinkInterface::GpsCallback, this);
-
   // This doesn't seem to be used anywhere but we leave it here
   // for potential compatibility
   if (_sdf->HasElement("imu_rate")) {
@@ -225,6 +219,13 @@ void GazeboMavlinkInterface::Configure(const ignition::gazebo::Entity &_entity,
   entity_ = _entity;
   model_ = ignition::gazebo::Model(_entity);
   model_name_ = model_.Name(_ecm);
+
+  // Subscribe to messages of other plugins.
+  node.Subscribe("/" + model_name_ + imu_sub_topic_, &GazeboMavlinkInterface::ImuCallback, this);
+  node.Subscribe("/" + model_name_ + baro_sub_topic_, &GazeboMavlinkInterface::BarometerCallback, this);
+  node.Subscribe("/" + model_name_ + mag_sub_topic_, &GazeboMavlinkInterface::MagnetometerCallback, this);
+  node.Subscribe("/" + model_name_ + gps_sub_topic_, &GazeboMavlinkInterface::GpsCallback, this);
+
 }
 
 void GazeboMavlinkInterface::PreUpdate(const ignition::gazebo::UpdateInfo &_info,
@@ -289,6 +290,8 @@ void GazeboMavlinkInterface::MagnetometerCallback(const sensor_msgs::msgs::Magne
   SensorData::Magnetometer mag_data;
   mag_data.mag_b = Eigen::Vector3d(_msg.magnetic_field().x(),
     _msg.magnetic_field().y(), _msg.magnetic_field().z());
+    ignwarn << "[mavlink_interface_] magnetometer value :\nX: " << _msg.magnetic_field().x() << "\nY: \n" << _msg.magnetic_field().y() << "\nZ: \n" << _msg.magnetic_field().z() << "\n";
+
   mavlink_interface_->UpdateMag(mag_data);
 }
 
