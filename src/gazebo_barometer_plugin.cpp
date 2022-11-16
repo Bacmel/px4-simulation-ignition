@@ -119,6 +119,8 @@ void BarometerPlugin::Configure(const ignition::gazebo::Entity &_entity,
   getSdfParams(_sdf);
 
   model_ = ignition::gazebo::Model(_entity);
+  std::string model_name_ = model_.Name(_ecm);
+
   // Get link entity
   model_link_ = model_.LinkByName(_ecm, link_name_);
 
@@ -144,7 +146,7 @@ void BarometerPlugin::Configure(const ignition::gazebo::Entity &_entity,
 
   standard_normal_distribution_ = std::normal_distribution<double>(0.0, 1.0);
 
-  pub_baro_ = this->node.Advertise<sensor_msgs::msgs::Pressure>("/" + model_.Name(_ecm) + baro_topic_);
+  pub_baro_ = this->node.Advertise<sensor_msgs::msgs::Pressure>("/" + model_name_ + baro_topic_);
 }
 
 void BarometerPlugin::addNoise(double &absolute_pressure, double &pressure_altitude, double &temperature_local, const double dt)

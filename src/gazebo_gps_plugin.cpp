@@ -152,13 +152,15 @@ void GpsPlugin::Configure(const ignition::gazebo::Entity &_entity,
   getSdfParams(_sdf);
 
   model_ = ignition::gazebo::Model(_entity);
+  std::string model_name_ = model_.Name(_ecm);
+
   // Get link entity
   model_link_ = model_.LinkByName(_ecm, link_name_);
 
   standard_normal_distribution_ = std::normal_distribution<double>(0.0, 1.0);
 
-  pub_gps_ = this->node.Advertise<sensor_msgs::msgs::SITLGps>("/" + model_.Name(_ecm) + gps_topic_);
-  node.Subscribe("/" + model_.Name(_ecm) + "/groundtruth", &GpsPlugin::GroundtruthCallback, this);
+  pub_gps_ = this->node.Advertise<sensor_msgs::msgs::SITLGps>("/" + model_name_ + gps_topic_);
+  node.Subscribe("/" + model_name_ + "/groundtruth", &GpsPlugin::GroundtruthCallback, this);
 }
 
 void GpsPlugin::GroundtruthCallback(const sensor_msgs::msgs::Groundtruth &gt_msg)
@@ -235,9 +237,9 @@ void GpsPlugin::addNoise(double &lat, double &lon, double &alt, double &vel_east
     vel_noise_gps_.X() = gps_vxy_noise_density_ * bandwidth * standard_normal_distribution_(random_generator_);
     vel_noise_gps_.Y() = gps_vxy_noise_density_ * bandwidth * standard_normal_distribution_(random_generator_);
     vel_noise_gps_.Z() = gps_vz_noise_density_ * bandwidth * standard_normal_distribution_(random_generator_);
-    driven_noise_.X() = gps_xy_random_walk_ * rst * standard_normal_distribution_(random_generator_);
-    driven_noise_.Y() = gps_xy_random_walk_ * rst * standard_normal_distribution_(random_generator_);
-    driven_noise_.Z() = gps_z_random_walk_ * rst * standard_normal_distribution_(random_generator_);
+    pos_random_walk_.X() = gps_xy_random_walk_ * rst * standard_normal_distribution_(random_generator_);
+    pos_random_walk_.Y() = gps_xy_random_walk_ * rst * standard_normal_distribution_(random_generator_);
+    pos_random_walk_.Z() = gps_z_random_walk_ * rst * standard_normal_distribution_(random_generator_);
   }
   else
   {
@@ -247,19 +249,19 @@ void GpsPlugin::addNoise(double &lat, double &lon, double &alt, double &vel_east
     vel_noise_gps_.X() = 0.0;
     vel_noise_gps_.Y() = 0.0;
     vel_noise_gps_.Z() = 0.0;
-    driven_noise_.X() = 0.0;
-    driven_noise_.Y() = 0.0;
-    driven_noise_.Z() = 0.0;
+    pos_random_walk_.X() = 0.0;
+    pos_random_walk_.Y() = 0.0;
+    pos_random_walk_.Z() = 0.0;
   }
 
   // gps bias integration
   // follow the first order Gauss-Markov Process:
   // x_k = (1-dt/T_c)*x_(k-1)+w_k
 
-  gps_bias_.X() += dt * (driven_noise_.X() - gps_bias_.X() / gps_correlation_time_);
-  gps_bias_.Y() += dt * (driven_noise_.Y() - gps_bias_.Y() / gps_correlation_time_);
-  gps_bias_.Z() += dt * (driven_noise_.Z() - gps_bias_.Z() / gps_correlation_time_);
-  // gps_bias_.Z() += driven_noise_.Z() * dt - gps_bias_.Z() / gps_correlation_time_;
+  gps_bias_.X() += pos_random_walk_.X() - dt * gps_bias_.X() / gps_correlation_time_;
+  gps_bias_.Y() += pos_random_walk_.Y() - dt * gps_bias_.Y() / gps_correlation_time_;
+  gps_bias_.Z() += pos_random_walk_.Z() - dt * gps_bias_.Z() / gps_correlation_time_;
+  // gps_bias_.Z() += pos_random_walk_.Z() * dt - gps_bias_.Z() / gps_correlation_time_;
 
   auto full_pos_noise = pos_noise_gps_ + gps_bias_;
   auto latlon = reproject(full_pos_noise, lat, lon, alt);

@@ -123,11 +123,13 @@ void MagnetometerPlugin::Configure(const ignition::gazebo::Entity &_entity,
   getSdfParams(_sdf);
 
   model_ = ignition::gazebo::Model(_entity);
+  std::string model_name_ = model_.Name(_ecm);
+
   // Get link entity
   model_link_ = model_.LinkByName(_ecm, link_name_);
 
-  pub_mag_ = this->node.Advertise<sensor_msgs::msgs::MagneticField>("/" + model_.Name(_ecm) + mag_topic_);
-  node.Subscribe("/" + model_.Name(_ecm) + "/grountruth", &MagnetometerPlugin::GroundtruthCallback, this);
+  pub_mag_ = this->node.Advertise<sensor_msgs::msgs::MagneticField>("/" + model_name_ + mag_topic_);
+  node.Subscribe("/" + model_name_ + "/groundtruth", &MagnetometerPlugin::GroundtruthCallback, this);
 
   standard_normal_distribution_ = std::normal_distribution<double>(0.0, 1.0);
 
@@ -234,6 +236,7 @@ void MagnetometerPlugin::PostUpdate(const ignition::gazebo::UpdateInfo &_info,
     mag_message_.set_allocated_magnetic_field(magnetic_field);
 
     // publish mag msg
+    ignwarn << "[gazebo_magnetometer_plugin] magnetometer value :\nX: " << measured_mag[0] << "\nY: \n" << measured_mag[1] << "\nZ: \n" << measured_mag[2] << "\n";
     pub_mag_.Publish(mag_message_);
 
     last_pub_time_ = current_time;

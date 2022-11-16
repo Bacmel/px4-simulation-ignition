@@ -124,6 +124,8 @@ void GroundtruthPlugin::Configure(const ignition::gazebo::Entity &_entity,
     getSdfParams(_sdf);
 
     model_ = ignition::gazebo::Model(_entity);
+    std::string model_name_ = model_.Name(_ecm);
+
     // Get link entity
     model_link_ = model_.LinkByName(_ecm, link_name_);
 
@@ -136,7 +138,7 @@ void GroundtruthPlugin::Configure(const ignition::gazebo::Entity &_entity,
         _ecm.CreateComponent(model_link_, ignition::gazebo::components::WorldLinearVelocity());
     }
 
-    pub_gt_ = this->node.Advertise<sensor_msgs::msgs::Groundtruth>("/" + model_.Name(_ecm) + gt_topic_);
+    pub_gt_ = this->node.Advertise<sensor_msgs::msgs::Groundtruth>("/" + model_name_ + gt_topic_);
 }
 
 void GroundtruthPlugin::PreUpdate(const ignition::gazebo::UpdateInfo &_info,

@@ -51,8 +51,8 @@ static constexpr double kDefaultGpsDelay = 0.12; // 120 ms
 static constexpr int kDefaultGpsBufferSizeMax = 1000;
 
 static constexpr double kDefaultGpsCorrelationTime = 60.0;  // s
-static constexpr double kDefaultGpsXYRandomWalk = 2.0;      // (m/s) / sqrt(s)
-static constexpr double kDefaultGpsZRandomWalk = 4.0;       // (m/s) / sqrt(s)
+static constexpr double kDefaultGpsXYRandomWalk = 0.4;      // (m) / sqrt(s)
+static constexpr double kDefaultGpsZRandomWalk = 0.8;       // (m) / sqrt(s)
 static constexpr double kDefaultGpsXYNoiseDensity = 2.0e-4; // (m) / sqrt(hz)
 static constexpr double kDefaultGpsZNoiseDensity = 4.0e-4;  // (m) / sqrt(hz)
 static constexpr double kDefaultGpsVXYNoiseDensity = 0.2;   // (m/s) / sqrt(hz)
@@ -119,7 +119,7 @@ namespace gps_plugin
     ignition::math::Vector3d gps_bias_;
     ignition::math::Vector3d pos_noise_gps_;
     ignition::math::Vector3d vel_noise_gps_;
-    ignition::math::Vector3d driven_noise_;
+    ignition::math::Vector3d pos_random_walk_;
 
     // gps noise parameters
     bool gps_noise_{kDefaultGpsNoise};
