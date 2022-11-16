@@ -236,7 +236,6 @@ void MagnetometerPlugin::PostUpdate(const ignition::gazebo::UpdateInfo &_info,
     mag_message_.set_allocated_magnetic_field(magnetic_field);
 
     // publish mag msg
-    ignwarn << "[gazebo_magnetometer_plugin] magnetometer value :\nX: " << measured_mag[0] << "\nY: \n" << measured_mag[1] << "\nZ: \n" << measured_mag[2] << "\n";
     pub_mag_.Publish(mag_message_);
 
     last_pub_time_ = current_time;

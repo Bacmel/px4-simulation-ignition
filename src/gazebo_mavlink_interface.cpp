@@ -290,8 +290,6 @@ void GazeboMavlinkInterface::MagnetometerCallback(const sensor_msgs::msgs::Magne
   SensorData::Magnetometer mag_data;
   mag_data.mag_b = Eigen::Vector3d(_msg.magnetic_field().x(),
     _msg.magnetic_field().y(), _msg.magnetic_field().z());
-    ignwarn << "[mavlink_interface_] magnetometer value :\nX: " << _msg.magnetic_field().x() << "\nY: \n" << _msg.magnetic_field().y() << "\nZ: \n" << _msg.magnetic_field().z() << "\n";
-
   mavlink_interface_->UpdateMag(mag_data);
 }
 

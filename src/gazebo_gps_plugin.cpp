@@ -230,13 +230,13 @@ void GpsPlugin::addNoise(double &lat, double &lon, double &alt, double &vel_east
   if (gps_noise_)
   {
     auto rst = sqrt(dt); // square root of the sampling time
-    auto bandwidth = sqrt(pub_rate_); // square root of publishing frequency
-    pos_noise_gps_.X() = gps_xy_noise_density_ * bandwidth * standard_normal_distribution_(random_generator_);
-    pos_noise_gps_.Y() = gps_xy_noise_density_ * bandwidth * standard_normal_distribution_(random_generator_);
-    pos_noise_gps_.Z() = gps_z_noise_density_ * bandwidth * standard_normal_distribution_(random_generator_);
-    vel_noise_gps_.X() = gps_vxy_noise_density_ * bandwidth * standard_normal_distribution_(random_generator_);
-    vel_noise_gps_.Y() = gps_vxy_noise_density_ * bandwidth * standard_normal_distribution_(random_generator_);
-    vel_noise_gps_.Z() = gps_vz_noise_density_ * bandwidth * standard_normal_distribution_(random_generator_);
+    auto bandwidth_sqrt = sqrt(pub_rate_); // square root of publishing frequency
+    pos_noise_gps_.X() = gps_xy_noise_density_ * bandwidth_sqrt * standard_normal_distribution_(random_generator_);
+    pos_noise_gps_.Y() = gps_xy_noise_density_ * bandwidth_sqrt * standard_normal_distribution_(random_generator_);
+    pos_noise_gps_.Z() = gps_z_noise_density_ * bandwidth_sqrt * standard_normal_distribution_(random_generator_);
+    vel_noise_gps_.X() = gps_vxy_noise_density_ * bandwidth_sqrt * standard_normal_distribution_(random_generator_);
+    vel_noise_gps_.Y() = gps_vxy_noise_density_ * bandwidth_sqrt * standard_normal_distribution_(random_generator_);
+    vel_noise_gps_.Z() = gps_vz_noise_density_ * bandwidth_sqrt * standard_normal_distribution_(random_generator_);
     pos_random_walk_.X() = gps_xy_random_walk_ * rst * standard_normal_distribution_(random_generator_);
     pos_random_walk_.Y() = gps_xy_random_walk_ * rst * standard_normal_distribution_(random_generator_);
     pos_random_walk_.Z() = gps_z_random_walk_ * rst * standard_normal_distribution_(random_generator_);
@@ -264,14 +264,16 @@ void GpsPlugin::addNoise(double &lat, double &lon, double &alt, double &vel_east
   // gps_bias_.Z() += pos_random_walk_.Z() * dt - gps_bias_.Z() / gps_correlation_time_;
 
   auto full_pos_noise = pos_noise_gps_ + gps_bias_;
+
   auto latlon = reproject(full_pos_noise, lat, lon, alt);
 
   lat = latlon.first;
   lon = latlon.second;
-  alt += gps_bias_.Z() - pos_noise_gps_.Z();
-  vel_east += vel_noise_gps_.Y();
+  alt += gps_bias_.Z() + pos_noise_gps_.Z();
+
   vel_north += vel_noise_gps_.X();
-  vel_up -= vel_noise_gps_.Z();
+  vel_east += vel_noise_gps_.Y();
+  vel_up += vel_noise_gps_.Z();
 }
 
 void GpsPlugin::PreUpdate(const ignition::gazebo::UpdateInfo &_info,
