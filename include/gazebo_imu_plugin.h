@@ -63,24 +63,18 @@ namespace imu_plugin
 {
 
     static constexpr auto kDefaultLinkName = "imu_link";
-    static constexpr auto kDefaultImuTopic = "imu";
+    static constexpr auto kDefaultImuTopic = "/imu";
+    static constexpr unsigned int kDefaultPubRate = 250.0; // [Hz]. Note: corresponds to most of the mag devices supported in PX4
+
     // Default values for use with ADIS16448 IMU
-    static constexpr double kDefaultAdisGyroscopeNoiseDensity =
-        2.0 * 35.0 / 3600.0 / 180.0 * M_PI;
-    static constexpr double kDefaultAdisGyroscopeRandomWalk =
-        2.0 * 4.0 / 3600.0 / 180.0 * M_PI;
-    static constexpr double kDefaultAdisGyroscopeBiasCorrelationTime =
-        1.0e+3;
-    static constexpr double kDefaultAdisGyroscopeTurnOnBiasSigma =
-        0.5 / 180.0 * M_PI;
-    static constexpr double kDefaultAdisAccelerometerNoiseDensity =
-        2.0 * 2.0e-3;
-    static constexpr double kDefaultAdisAccelerometerRandomWalk =
-        2.0 * 3.0e-3;
-    static constexpr double kDefaultAdisAccelerometerBiasCorrelationTime =
-        300.0;
-    static constexpr double kDefaultAdisAccelerometerTurnOnBiasSigma =
-        20.0e-3 * 9.8;
+    static constexpr double kDefaultAdisGyroscopeNoiseDensity = 2.0 * 35.0 / 3600.0 / 180.0 * M_PI;
+    static constexpr double kDefaultAdisGyroscopeRandomWalk = 2.0 * 4.0 / 3600.0 / 180.0 * M_PI;
+    static constexpr double kDefaultAdisGyroscopeBiasCorrelationTime = 1.0e+3;
+    static constexpr double kDefaultAdisGyroscopeTurnOnBiasSigma = 0.5 / 180.0 * M_PI;
+    static constexpr double kDefaultAdisAccelerometerNoiseDensity = 2.0 * 2.0e-3;
+    static constexpr double kDefaultAdisAccelerometerRandomWalk = 2.0 * 3.0e-3;
+    static constexpr double kDefaultAdisAccelerometerBiasCorrelationTime = 300.0;
+    static constexpr double kDefaultAdisAccelerometerTurnOnBiasSigma = 20.0e-3 * 9.8;
     // Earth's gravity in Zurich (lat=+47.3667degN, lon=+8.5500degE, h=+500m, WGS84)
     static constexpr double kDefaultGravityMagnitude = 9.8068;
 
@@ -137,11 +131,13 @@ namespace imu_plugin
     private:
         void getSdfParams(const std::shared_ptr<const sdf::Element> &sdf);
         void addNoise(
-            Eigen::Vector3d *linear_acceleration,
-            Eigen::Vector3d *angular_velocity,
+            Eigen::Vector3d &linear_acceleration,
+            Eigen::Vector3d &angular_velocity,
             const double dt);
 
-        std::string imu_topic_;
+        std::string imu_topic_{kDefaultImuTopic};
+        unsigned int pub_rate_{kDefaultPubRate};
+
         ignition::transport::Node node;
         ignition::transport::Node::Publisher pub_imu_;
         std::string frame_id_;
@@ -153,7 +149,7 @@ namespace imu_plugin
         ignition::gazebo::Model model_{ignition::gazebo::kNullEntity};
         ignition::gazebo::Entity model_link_{ignition::gazebo::kNullEntity};
 
-        std::chrono::steady_clock::duration last_time_{0};
+        std::chrono::steady_clock::duration last_pub_time_{0};
 
         sensor_msgs::msgs::Imu imu_message_;
 

@@ -10,6 +10,7 @@ find_package(ignition-plugin1 REQUIRED COMPONENTS register)
 set(IGN_PLUGIN_VER ${ignition-plugin1_VERSION_MAJOR})
 
 find_package(ignition-gazebo5)
+
 if(ignition-gazebo5_FOUND)
   set(GAZEBO_VERSION 5)
   set(IGN_MSG_VER 7)
@@ -32,9 +33,11 @@ PROTOBUF_GENERATE_CPP(SEN_PROTO_SRCS SEN_PROTO_HDRS DESCRIPTORS SEN_PROTO_DESCS
   msgs/MagneticField.proto
   msgs/Groundtruth.proto
   msgs/SITLGps.proto
-  )
+  msgs/Imu.proto
+)
+
 set_source_files_properties(${SEN_PROTO_SRC} ${SEN_PROTO_HDRS}
-                           PROPERTIES GENERATED TRUE)
+  PROPERTIES GENERATED TRUE)
 add_library(gazebo_mavlink_sensor_msgs SHARED ${SEN_PROTO_SRCS} ${SEN_PROTO_DESCS})
 target_link_libraries(gazebo_mavlink_sensor_msgs ignition-msgs${IGN_MSG_VER})
 
@@ -93,6 +96,15 @@ target_link_libraries(gazebo_groundtruth_plugin
   PRIVATE gazebo_mavlink_sensor_msgs
 )
 
+add_library(gazebo_imu_plugin SHARED src/gazebo_imu_plugin.cpp)
+set_property(TARGET gazebo_imu_plugin PROPERTY CXX_STANDARD 17)
+target_link_libraries(gazebo_imu_plugin
+  PRIVATE ${Boost_LIBRARIES}
+  PRIVATE ignition-plugin${IGN_PLUGIN_VER}::ignition-plugin${IGN_PLUGIN_VER}
+  PRIVATE ignition-gazebo${GAZEBO_VERSION}::ignition-gazebo${GAZEBO_VERSION}
+  PRIVATE gazebo_mavlink_sensor_msgs
+)
+
 include(GNUInstallDirs)
 install(TARGETS
   mavlink_sitl_ign_gazebo
@@ -100,9 +112,10 @@ install(TARGETS
   gazebo_magnetometer_plugin
   gazebo_gps_plugin
   gazebo_groundtruth_plugin
+  gazebo_imu_plugin
   gazebo_mavlink_sensor_msgs
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-  )
+)
 
 set(CPACK_PACKAGE_CONTACT "Auterion")
 include(CPack)
