@@ -270,7 +270,7 @@ void GazeboMavlinkInterface::PostUpdate(const ignition::gazebo::UpdateInfo &_inf
     const ignition::gazebo::EntityComponentManager &_ecm) {
 }
 
-void GazeboMavlinkInterface::ImuCallback(const ignition::msgs::IMU &_msg) {
+void GazeboMavlinkInterface::ImuCallback(const sensor_msgs::msgs::Imu &_msg) {
   const std::lock_guard<std::mutex> lock(last_imu_message_mutex_);
   last_imu_message_ = _msg;
 
@@ -337,7 +337,7 @@ void GazeboMavlinkInterface::SendSensorMessages(const ignition::gazebo::UpdateIn
     }
   }
 
-  int time_usec = std::chrono::duration_cast<std::chrono::duration<int>>(_info.simTime * 1e6).count();
+  int time_usec = std::chrono::duration_cast<std::chrono::microseconds>(_info.simTime).count();
 
   // send always accel and gyro data (not dependent of the bitmask)
   // required so to keep the timestamps on sync and the lockstep can

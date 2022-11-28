@@ -65,7 +65,7 @@
 #include <ignition/gazebo/components/Pose.hh>
 
 #include <ignition/transport/Node.hh>
-#include <ignition/msgs/imu.pb.h>
+#include <Imu.pb.h>
 #include <Pressure.pb.h>
 #include <MagneticField.pb.h>
 #include <SITLGps.pb.h>
@@ -140,7 +140,7 @@ namespace mavlink_interface
       bool use_left_elevon_pid_{false};
       bool use_right_elevon_pid_{false};
 
-      void ImuCallback(const ignition::msgs::IMU &_msg);
+      void ImuCallback(const sensor_msgs::msgs::Imu &_msg);
       void BarometerCallback(const sensor_msgs::msgs::Pressure &_msg);
       void MagnetometerCallback(const sensor_msgs::msgs::MagneticField &_msg);
       void GpsCallback(const sensor_msgs::msgs::SITLGps &_msg);
@@ -177,7 +177,7 @@ namespace mavlink_interface
 
       std::mutex last_imu_message_mutex_ {};
 
-      ignition::msgs::IMU last_imu_message_;
+      sensor_msgs::msgs::Imu last_imu_message_;
       ignition::msgs::Actuators rotor_velocity_message_;
 
       std::chrono::steady_clock::duration last_imu_time_{0};

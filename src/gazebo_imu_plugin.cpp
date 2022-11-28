@@ -89,7 +89,7 @@ void ImuPlugin::Configure(const ignition::gazebo::Entity &_entity,
   // Gravity
   if (!_ecm.EntityHasComponentType(model_link_, ignition::gazebo::components::Gravity::typeId))
   {
-    gravity_W_ = kDefaultGravityMagnitude;
+    gravity_W_ = ignition::math::Vector3d(0, 0, -kDefaultGravityMagnitude);
   }
   else
   {
