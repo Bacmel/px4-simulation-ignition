@@ -30,15 +30,13 @@
 #include <ignition/gazebo/Model.hh>
 #include <ignition/gazebo/Util.hh>
 #include <ignition/gazebo/System.hh>
-#include <ignition/gazebo/components/Pose.hh>
+#include <ignition/gazebo/components/JointVelocity.hh>
 #include <ignition/gazebo/components/Name.hh>
 
 #include <common.h>
 
 namespace multirotor_base_plugin
 {
-
-  typedef const boost::shared_ptr<const mav_msgs::msgs::MotorSpeed> MotorSpeedPtr;
 
   // Default values
   static constexpr auto kDefaultMotorPubTopic = "/motors";
@@ -55,7 +53,7 @@ namespace multirotor_base_plugin
       public ignition::gazebo::ISystemPreUpdate,
       public ignition::gazebo::ISystemPostUpdate
   {
-  typedef std::map<const unsigned int, const physics::JointPtr> MotorNumberToJointMap;
+  typedef std::map<const unsigned int, const ignition::gazebo::Entity> MotorNumberToJointMap;
   public:
     MultirotorBasePlugin();
 
@@ -77,6 +75,7 @@ namespace multirotor_base_plugin
                     const ignition::gazebo::EntityComponentManager &_ecm) override;
 
   private:
+    void getSdfParams(const std::shared_ptr<const sdf::Element> &sdf);
     /// \brief Pointer to the update event connection.
     ignition::gazebo::Model model_{ignition::gazebo::kNullEntity};
     ignition::gazebo::Entity model_link_{ignition::gazebo::kNullEntity};
