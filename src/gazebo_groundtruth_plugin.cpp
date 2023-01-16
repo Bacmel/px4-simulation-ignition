@@ -152,8 +152,7 @@ void GroundtruthPlugin::PostUpdate(const ignition::gazebo::UpdateInfo &_info,
     const std::chrono::steady_clock::duration current_time = _info.simTime;
 
     // Get pose of the model that the plugin is attached to
-    const ignition::gazebo::components::WorldPose *pT_W_I = _ecm.Component<ignition::gazebo::components::WorldPose>(model_link_);
-    const ignition::math::Pose3d T_W_I = pT_W_I->Data();
+    const ignition::math::Pose3d T_W_I = _ecm.Component<ignition::gazebo::components::WorldPose>(model_link_)->Data();
     // Use the models world position and attitude for groundtruth
     ignition::math::Vector3d pos_W_I = T_W_I.Pos();
     ignition::math::Quaterniond att_W_I = T_W_I.Rot();
@@ -162,8 +161,7 @@ void GroundtruthPlugin::PostUpdate(const ignition::gazebo::UpdateInfo &_info,
     auto latlon_gt = reproject(pos_W_I, lat_home_, lon_home_, alt_home_);
 
     // Use the models' world position for groundtruth velocity.
-    const ignition::gazebo::components::WorldLinearVelocity *pvelocity_current_W = _ecm.Component<ignition::gazebo::components::WorldLinearVelocity>(model_link_);
-    const ignition::math::Vector3d velocity_current_W = pvelocity_current_W->Data();
+    const ignition::math::Vector3d velocity_current_W = _ecm.Component<ignition::gazebo::components::WorldLinearVelocity>(model_link_)->Data();
 
     ignition::math::Vector3d velocity_current_W_xy = velocity_current_W;
     velocity_current_W_xy.Z() = 0;

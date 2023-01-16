@@ -216,8 +216,7 @@ void MagnetometerPlugin::PostUpdate(const ignition::gazebo::UpdateInfo &_info,
     ignition::math::Vector3d magnetic_field_I(X, Y, Z);
 
     // TODO: Get valid data for these
-    const ignition::gazebo::components::WorldPose *pComp = _ecm.Component<ignition::gazebo::components::WorldPose>(model_link_);
-    const ignition::math::Pose3d T_W_I = pComp->Data();
+    const ignition::math::Pose3d T_W_I = _ecm.Component<ignition::gazebo::components::WorldPose>(model_link_)->Data();
 
     ignition::math::Quaterniond q_body_to_world = q_ENU_to_NED * T_W_I.Rot() * q_FLU_to_FRD.Inverse();
 

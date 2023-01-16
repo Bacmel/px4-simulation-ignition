@@ -165,16 +165,13 @@ void ImuPlugin::PostUpdate(const ignition::gazebo::UpdateInfo &_info,
   {
     // TODO: Get valid data for
 
-    const ignition::gazebo::components::WorldPose *p_T_W_I = _ecm.Component<ignition::gazebo::components::WorldPose>(model_link_);
-    const ignition::math::Pose3d T_W_I = p_T_W_I->Data();
+    const ignition::math::Pose3d T_W_I = _ecm.Component<ignition::gazebo::components::WorldPose>(model_link_)->Data();
 
     ignition::math::Quaterniond C_W_I = T_W_I.Rot();
 
-    const ignition::gazebo::components::WorldAngularVelocity *p_angular_vel_I = _ecm.Component<ignition::gazebo::components::WorldAngularVelocity>(model_link_);
-    ignition::math::Vector3d angular_vel_I = p_angular_vel_I->Data();
+    ignition::math::Vector3d angular_vel_I = _ecm.Component<ignition::gazebo::components::WorldAngularVelocity>(model_link_)->Data();
 
-    const ignition::gazebo::components::WorldLinearAcceleration *p_acceleration_I = _ecm.Component<ignition::gazebo::components::WorldLinearAcceleration>(model_link_);
-    ignition::math::Vector3d acceleration_I = p_acceleration_I->Data() - C_W_I.RotateVectorReverse(gravity_W_);
+    ignition::math::Vector3d acceleration_I = _ecm.Component<ignition::gazebo::components::WorldLinearAcceleration>(model_link_)->Data() - C_W_I.RotateVectorReverse(gravity_W_);
 
     Eigen::Vector3d linear_acceleration_I(acceleration_I.X(),
                                           acceleration_I.Y(),
