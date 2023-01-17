@@ -31,9 +31,12 @@ find_package(Protobuf REQUIRED)
 PROTOBUF_GENERATE_CPP(SEN_PROTO_SRCS SEN_PROTO_HDRS DESCRIPTORS SEN_PROTO_DESCS
   msgs/Pressure.proto
   msgs/MagneticField.proto
+  msgs/CommandMotorSpeed.proto
   msgs/MotorSpeed.proto
   msgs/Groundtruth.proto
   msgs/SITLGps.proto
+  msgs/Float.proto
+  msgs/Wind.proto
   msgs/Imu.proto
 )
 
@@ -115,6 +118,15 @@ target_link_libraries(gazebo_multirotor_base_plugin
   PRIVATE gazebo_mavlink_sensor_msgs
 )
 
+add_library(gazebo_motor_model SHARED src/gazebo_motor_model.cpp)
+set_property(TARGET gazebo_motor_model PROPERTY CXX_STANDARD 17)
+target_link_libraries(gazebo_motor_model
+  PRIVATE ${Boost_LIBRARIES}
+  PRIVATE ignition-plugin${IGN_PLUGIN_VER}::ignition-plugin${IGN_PLUGIN_VER}
+  PRIVATE ignition-gazebo${GAZEBO_VERSION}::ignition-gazebo${GAZEBO_VERSION}
+  PRIVATE gazebo_mavlink_sensor_msgs
+)
+
 include(GNUInstallDirs)
 install(TARGETS
   mavlink_sitl_ign_gazebo
@@ -125,6 +137,7 @@ install(TARGETS
   gazebo_imu_plugin
   gazebo_mavlink_sensor_msgs
   gazebo_multirotor_base_plugin
+  gazebo_motor_model
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
 )
 
