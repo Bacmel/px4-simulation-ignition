@@ -32,8 +32,7 @@ IGNITION_ADD_PLUGIN(
 using namespace gazebo_motor_model;
 
 GazeboMotorModel::GazeboMotorModel()
-    : MotorModel(),
-      command_sub_topic_(kDefaultCommandSubTopic),
+    : command_sub_topic_(kDefaultCommandSubTopic),
       // motor_failure_sub_topic_(kDefaultMotorFailureNumSubTopic),
       motor_speed_pub_topic_(kDefaultMotorVelocityPubTopic),
       motor_number_(0),
@@ -159,9 +158,10 @@ void GazeboMotorModel::getSdfParams(const std::shared_ptr<const sdf::Element> &s
   gazebo::getSdfParam<double>(sdf, "rotorVelocitySlowdownSim", rotor_velocity_slowdown_sim_, 10);
 }
 
-void GazeboMotorModel::Publish()
+void GazeboMotorModel::Publish(const ignition::gazebo::EntityComponentManager &_ecm)
 {
-  turning_velocity_msg_.set_data(joint_->GetVelocity(0));
+  const double vel = _ecm.ComponentData<ignition::gazebo::components::JointVelocity>(joint_)->at(0);
+  turning_velocity_msg_.set_data(vel);
   // FIXME: Commented out to prevent warnings about queue limit reached.
   // motor_velocity_pub_->Publish(turning_velocity_msg_);
 }
@@ -184,9 +184,7 @@ void GazeboMotorModel::Configure(const ignition::gazebo::Entity &_entity,
   */
 
   // Set the maximumForce on the joint. This is deprecated from V5 on, and the joint won't move.
-#if GAZEBO_MAJOR_VERSION < 5
-  joint_->SetMaxForce(0, max_force_);
-#endif
+  joint_ = model_.JointByName(_ecm, joint_name_);
 
   motor_velocity_pub_ = this->node.Advertise<std_msgs::msgs::Float>("/" + model_name_ + motor_speed_pub_topic_);
   node.Subscribe("/" + model_name_ + command_sub_topic_, &GazeboMotorModel::VelocityCallback, this);
@@ -200,21 +198,21 @@ void GazeboMotorModel::Configure(const ignition::gazebo::Entity &_entity,
 void GazeboMotorModel::PreUpdate(const ignition::gazebo::UpdateInfo &_info,
                                  ignition::gazebo::EntityComponentManager &_ecm)
 {
+  sampling_time_ = std::chrono::duration<double>(_info.simTime - prev_sim_time_).count();
+  prev_sim_time_ = _info.simTime;
+  UpdateForcesAndMoments(_ecm);
 }
 
 void GazeboMotorModel::PostUpdate(const ignition::gazebo::UpdateInfo &_info,
                                   const ignition::gazebo::EntityComponentManager &_ecm)
 {
-  sampling_time_ = _info.simTime.Double() - prev_sim_time_;
-  prev_sim_time_ = _info.simTime.Double();
-  UpdateForcesAndMoments();
   // UpdateMotorFail();
-  Publish();
+  Publish(_ecm);
 }
 
 void GazeboMotorModel::VelocityCallback(const mav_msgs::msgs::CommandMotorSpeed &rot_velocities)
 {
-  if (rot_velocities->motor_speed_size() < motor_number_)
+  if (rot_velocities.motor_speed_size() < motor_number_)
   {
     std::cout << "You tried to access index " << motor_number_
               << " of the MotorSpeed message array which is of size " << rot_velocities.motor_speed_size() << "." << std::endl;
@@ -228,12 +226,12 @@ void GazeboMotorModel::VelocityCallback(const mav_msgs::msgs::CommandMotorSpeed 
   motor_Failure_Number_ = fail_msg.data();
 }*/
 
-void GazeboMotorModel::UpdateForcesAndMoments()
+void GazeboMotorModel::UpdateForcesAndMoments(ignition::gazebo::EntityComponentManager &_ecm)
 {
-  motor_rot_vel_ = joint_->GetVelocity(0);
+  motor_rot_vel_ = _ecm.ComponentData<ignition::gazebo::components::JointVelocity>(joint_)->at(0);
   if (motor_rot_vel_ / (2 * M_PI) > 1 / (2 * sampling_time_))
   {
-    gzerr << "Aliasing on motor [" << motor_number_ << "] might occur. Consider making smaller simulation time steps or raising the rotor_velocity_slowdown_sim_ param.\n";
+    ignerr << "Aliasing on motor [" << motor_number_ << "] might occur. Consider making smaller simulation time steps or raising the rotor_velocity_slowdown_sim_ param.\n";
   }
   double real_motor_velocity = motor_rot_vel_ * rotor_velocity_slowdown_sim_;
   double force = real_motor_velocity * std::abs(real_motor_velocity) * motor_constant_;
@@ -246,13 +244,8 @@ void GazeboMotorModel::UpdateForcesAndMoments()
   // scale down force linearly with forward speed
   // XXX this has to be modelled better
   //
-#if GAZEBO_MAJOR_VERSION >= 9
-  ignition::math::Vector3d body_velocity = link_->WorldLinearVel();
-  ignition::math::Vector3d joint_axis = joint_->GlobalAxis(0);
-#else
-  ignition::math::Vector3d body_velocity = ignitionFromGazeboMath(link_->GetWorldLinearVel());
-  ignition::math::Vector3d joint_axis = ignitionFromGazeboMath(joint_->GetGlobalAxis(0));
-#endif
+  ignition::math::Vector3d body_velocity = _ecm.ComponentData<ignition::gazebo::components::LinearVelocity>(model_link_).value();
+  ignition::math::Vector3d joint_axis = _ecm.ComponentData<ignition::gazebo::components::JointAxis>(joint_).value().Xyz();
 
   ignition::math::Vector3d relative_wind_velocity = body_velocity - wind_vel_;
   ignition::math::Vector3d velocity_parallel_to_rotor_axis = (relative_wind_velocity.Dot(joint_axis)) * joint_axis;
@@ -269,7 +262,7 @@ void GazeboMotorModel::UpdateForcesAndMoments()
   ignition::math::Vector3d velocity_perpendicular_to_rotor_axis = relative_wind_velocity - (relative_wind_velocity.Dot(joint_axis)) * joint_axis;
   ignition::math::Vector3d air_drag = -std::abs(real_motor_velocity) * rotor_drag_coefficient_ * velocity_perpendicular_to_rotor_axis;
   // Apply air_drag to link.
-  link_->AddForce(air_drag);
+  _ecm.SetComponentData(model_link_, ignition::gazebo::components::JointForceCmd({air_drag}));
   // Moments
   // Getting the parent link, such that the resulting torques can be applied to it.
   physics::Link_V parent_links = link_->GetParentJointsLinks();
@@ -298,7 +291,7 @@ void GazeboMotorModel::UpdateForcesAndMoments()
     double err = joint_->GetVelocity(0) - turning_direction_ * ref_motor_rot_vel / rotor_velocity_slowdown_sim_;
     double rotorForce = pid_.Update(err, sampling_time_);
     joint_->SetForce(0, rotorForce);
-    // gzerr << "rotor " << joint_->GetName() << " : " << rotorForce << "\n";
+    // ignerr << "rotor " << joint_->GetName() << " : " << rotorForce << "\n";
   }
   else
   {
@@ -314,7 +307,8 @@ void GazeboMotorModel::UpdateForcesAndMoments()
 #endif
   }
 #else
-  joint_->SetVelocity(0, turning_direction_ * ref_motor_rot_vel / rotor_velocity_slowdown_sim_);
+  _ecm.SetComponentData(joint_, ignition::gazebo::components::JointVelocityCmd(turning_direction_ * ref_motor_rot_vel / rotor_velocity_slowdown_sim_));
+
 #endif /* if 0 */
 }
 

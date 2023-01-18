@@ -23,13 +23,17 @@
 
 #include <Eigen/Eigen>
 
-#include <rotors_model/motor_model.hpp>
-
 #include <ignition/transport/Node.hh>
 #include <ignition/math.hh>
 #include <ignition/gazebo/Model.hh>
 #include <ignition/gazebo/Util.hh>
 #include <ignition/gazebo/System.hh>
+
+#include <ignition/gazebo/components/LinearVelocity.hh>
+#include <ignition/gazebo/components/JointVelocity.hh>
+#include <ignition/gazebo/components/JointVelocityCmd.hh>
+#include <ignition/gazebo/components/JointForceCmd.hh>
+#include <ignition/gazebo/components/JointAxis.hh>
 
 #include <CommandMotorSpeed.pb.h>
 #include <MotorSpeed.pb.h>
@@ -50,7 +54,7 @@ namespace gazebo_motor_model
   // Default values
   static constexpr auto kDefaultNamespace = "";
   static constexpr auto kDefaultCommandSubTopic = "/gazebo/command/motor_speed";
-  //static constexpr auto kDefaultMotorFailureNumSubTopic = "/gazebo/motor_failure_num";
+  // static constexpr auto kDefaultMotorFailureNumSubTopic = "/gazebo/motor_failure_num";
   static constexpr auto kDefaultMotorVelocityPubTopic = "/motor_speed";
   static constexpr auto wind_sub_topic_ = "/world_wind";
 
@@ -68,7 +72,6 @@ namespace gazebo_motor_model
   /// \brief This plugin publishes the motor speeds of your multirotor model.
   class IGNITION_GAZEBO_VISIBLE GazeboMotorModel :
       // This is class a system.
-      public MotorModel,
       public ignition::gazebo::System,
       public ignition::gazebo::ISystemConfigure,
       public ignition::gazebo::ISystemPreUpdate,
@@ -97,14 +100,14 @@ namespace gazebo_motor_model
   private:
     void getSdfParams(const std::shared_ptr<const sdf::Element> &sdf);
     void InitializeParams();
-    void Publish();
-    void UpdateForcesAndMoments();
+    void Publish(const ignition::gazebo::EntityComponentManager &_ecm);
+    void UpdateForcesAndMoments(ignition::gazebo::EntityComponentManager &_ecm);
     /// \brief A function to check the motor_Failure_Number_ and stimulate motor fail
     /// \details Doing joint_->SetVelocity(0,0) for the flagged motor to fail
-    //void UpdateMotorFail();
+    // void UpdateMotorFail();
 
     void VelocityCallback(const mav_msgs::msgs::CommandMotorSpeed &rot_velocities);
-    //void MotorFailureCallback(const std_msgs::msgs::Int &fail_msg); /*!< Callback for the motor_failure_sub_ subscriber */
+    // void MotorFailureCallback(const std_msgs::msgs::Int &fail_msg); /*!< Callback for the motor_failure_sub_ subscriber */
     void WindVelocityCallback(const physics_msgs::msgs::Wind &msg);
 
   private:
@@ -112,7 +115,7 @@ namespace gazebo_motor_model
     ignition::gazebo::Entity model_link_{ignition::gazebo::kNullEntity};
 
     std::string command_sub_topic_;
-    //std::string motor_failure_sub_topic_;
+    // std::string motor_failure_sub_topic_;
     std::string joint_name_;
     std::string link_name_;
     std::string motor_speed_pub_topic_;
@@ -121,8 +124,8 @@ namespace gazebo_motor_model
     int motor_number_;
     int turning_direction_;
 
-    //int motor_Failure_Number_; /*!< motor_Failure_Number is (motor_number_ + 1) as (0) is considered no_fail. Publish accordingly */
-    int tmp_motor_num;         // A temporary variable used to print msg
+    // int motor_Failure_Number_; /*!< motor_Failure_Number is (motor_number_ + 1) as (0) is considered no_fail. Publish accordingly */
+    int tmp_motor_num; // A temporary variable used to print msg
 
     int screen_msg_flag = 1;
 
@@ -144,10 +147,17 @@ namespace gazebo_motor_model
 
     ignition::math::Vector3d wind_vel_;
 
-    //ignition::math::PID pid_;
-    //bool use_pid_;
+    ignition::gazebo::Entity joint_;
+
+    // ignition::math::PID pid_;
+    // bool use_pid_;
 
     std_msgs::msgs::Float turning_velocity_msg_;
+
+    double motor_rot_vel_;
+
+    double sampling_time_;
+    std::chrono::steady_clock::duration prev_sim_time_;
 
     std::unique_ptr<FirstOrderFilter<double>> rotor_velocity_filter_;
     /*
