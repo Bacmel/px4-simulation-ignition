@@ -51,11 +51,11 @@ void GazeboMavlinkInterface::Configure(const ignition::gazebo::Entity &_entity,
       ignition::gazebo::EventManager &_em) {
 
   namespace_.clear();
-  if (_sdf->HasElement("robotNamespace")) {
+  /*if (_sdf->HasElement("robotNamespace")) {
     namespace_ = _sdf->Get<std::string>("robotNamespace");
   } else {
     ignerr << "[gazebo_mavlink_interface] Please specify a robotNamespace.\n";
-  }
+  }*/
 
   if (_sdf->HasElement("protocol_version")) {
     protocol_version_ = _sdf->Get<float>("protocol_version");
