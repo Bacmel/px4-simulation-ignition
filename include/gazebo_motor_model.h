@@ -34,6 +34,10 @@
 #include <ignition/gazebo/components/JointVelocityCmd.hh>
 #include <ignition/gazebo/components/JointForceCmd.hh>
 #include <ignition/gazebo/components/JointAxis.hh>
+#include <ignition/gazebo/components/Pose.hh>
+#include <ignition/gazebo/components/ParentEntity.hh>
+
+#include <sdf/sdf.hh>
 
 #include <CommandMotorSpeed.pb.h>
 #include <MotorSpeed.pb.h>
@@ -52,10 +56,9 @@ namespace gazebo_motor_model
   }
 
   // Default values
-  static constexpr auto kDefaultNamespace = "";
   static constexpr auto kDefaultCommandSubTopic = "/gazebo/command/motor_speed";
   // static constexpr auto kDefaultMotorFailureNumSubTopic = "/gazebo/motor_failure_num";
-  static constexpr auto kDefaultMotorVelocityPubTopic = "/motor_speed";
+  static constexpr auto kDefaultMotorSpeedPubTopic = "/motor_speed";
   static constexpr auto wind_sub_topic_ = "/world_wind";
 
   // Set the max_force_ to the max double value. The limitations get handled by the FirstOrderFilter.
@@ -64,10 +67,11 @@ namespace gazebo_motor_model
   static constexpr double kDefaultMomentConstant = 0.016;
   static constexpr double kDefaultTimeConstantUp = 1.0 / 80.0;
   static constexpr double kDefaultTimeConstantDown = 1.0 / 40.0;
-  static constexpr double kDefaulMaxRotVelocity = 838.0;
+  static constexpr double kDefaultMaxRotVelocity = 838.0;
   static constexpr double kDefaultRotorDragCoefficient = 1.0e-4;
   static constexpr double kDefaultRollingMomentCoefficient = 1.0e-6;
   static constexpr double kDefaultRotorVelocitySlowdownSim = 10.0;
+  static constexpr bool kDefaultReversible = false;
 
   /// \brief This plugin publishes the motor speeds of your multirotor model.
   class IGNITION_GAZEBO_VISIBLE GazeboMotorModel :
@@ -81,7 +85,7 @@ namespace gazebo_motor_model
     GazeboMotorModel();
 
   public:
-    ~GazeboMotorModel() override;
+    ~GazeboMotorModel();
 
   public:
     void Configure(const ignition::gazebo::Entity &_entity,
@@ -91,14 +95,14 @@ namespace gazebo_motor_model
 
   public:
     void PreUpdate(const ignition::gazebo::UpdateInfo &_info,
-                   ignition::gazebo::EntityComponentManager &_ecm) override;
+                   ignition::gazebo::EntityComponentManager &_ecm);
 
   public:
     void PostUpdate(const ignition::gazebo::UpdateInfo &_info,
-                    const ignition::gazebo::EntityComponentManager &_ecm) override;
+                    const ignition::gazebo::EntityComponentManager &_ecm);
 
   private:
-    void getSdfParams(const std::shared_ptr<const sdf::Element> &sdf);
+    void getSdfParams(const std::shared_ptr<const sdf::Element> &_sdf);
     void InitializeParams();
     void Publish(const ignition::gazebo::EntityComponentManager &_ecm);
     void UpdateForcesAndMoments(ignition::gazebo::EntityComponentManager &_ecm);
@@ -112,12 +116,17 @@ namespace gazebo_motor_model
 
   private:
     ignition::gazebo::Model model_{ignition::gazebo::kNullEntity};
+
+    // attributs regarding the motor link
+    std::string link_name_;
     ignition::gazebo::Entity model_link_{ignition::gazebo::kNullEntity};
+
+    // attributs regarding the motor joint
+    std::string joint_name_;
+    ignition::gazebo::Entity model_joint_{ignition::gazebo::kNullEntity};
 
     std::string command_sub_topic_;
     // std::string motor_failure_sub_topic_;
-    std::string joint_name_;
-    std::string link_name_;
     std::string motor_speed_pub_topic_;
     std::string namespace_;
 
@@ -147,8 +156,6 @@ namespace gazebo_motor_model
 
     ignition::math::Vector3d wind_vel_;
 
-    ignition::gazebo::Entity joint_;
-
     // ignition::math::PID pid_;
     // bool use_pid_;
 
@@ -158,6 +165,7 @@ namespace gazebo_motor_model
 
     double sampling_time_;
     std::chrono::steady_clock::duration prev_sim_time_;
+    bool is_first_update = true;
 
     std::unique_ptr<FirstOrderFilter<double>> rotor_velocity_filter_;
     /*
