@@ -35,9 +35,11 @@
 #include <ignition/gazebo/components/JointForceCmd.hh>
 #include <ignition/gazebo/components/JointAxis.hh>
 #include <ignition/gazebo/components/Pose.hh>
+#include <ignition/gazebo/components/Name.hh>
 #include <ignition/gazebo/components/ParentEntity.hh>
 
 #include <sdf/sdf.hh>
+#include <ignition/gazebo/Link.hh>
 
 #include <CommandMotorSpeed.pb.h>
 #include <MotorSpeed.pb.h>
@@ -120,6 +122,10 @@ namespace gazebo_motor_model
     // attributs regarding the motor link
     std::string link_name_;
     ignition::gazebo::Entity model_link_{ignition::gazebo::kNullEntity};
+    ignition::gazebo::Entity parent_link_{ignition::gazebo::kNullEntity};
+
+    ignition::gazebo::Link link_rotor_;
+    ignition::gazebo::Link link_parent_;
 
     // attributs regarding the motor joint
     std::string joint_name_;
@@ -128,7 +134,6 @@ namespace gazebo_motor_model
     std::string command_sub_topic_;
     // std::string motor_failure_sub_topic_;
     std::string motor_speed_pub_topic_;
-    std::string namespace_;
 
     int motor_number_;
     int turning_direction_;
@@ -142,13 +147,12 @@ namespace gazebo_motor_model
     double max_rot_velocity_;
     double moment_constant_;
     double motor_constant_;
-    double ref_motor_rot_vel_;
+    double ref_motor_rot_vel_{0.0};
     double rolling_moment_coefficient_;
     double rotor_drag_coefficient_;
     double rotor_velocity_slowdown_sim_;
     double time_constant_down_;
     double time_constant_up_;
-
     bool reversible_;
 
     ignition::transport::Node node;
