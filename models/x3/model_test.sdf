@@ -297,7 +297,8 @@
     <plugin
       name='gazebo_motor_model::GazeboMotorModel' filename='libgazebo_motor_model.so'>
       <jointName>rotor_0_joint</jointName>
-      <linkName>rotor_0</linkName>
+      <linkChildName>rotor_0</linkChildName>
+      <linkParentName>base_link</linkParentName>
       <motorNumber>0</motorNumber>
       <turningDirection>ccw</turningDirection>
       <motorSpeedPubTopic>/motor_speed/0</motorSpeedPubTopic>
@@ -311,10 +312,11 @@
       <rollingMomentCoefficient>1e-06</rollingMomentCoefficient>
       <rotorVelocitySlowdownSim>10</rotorVelocitySlowdownSim>
     </plugin>
-    <!-- <plugin
+    <plugin
       name='gazebo_motor_model::GazeboMotorModel' filename='libgazebo_motor_model.so'>
       <jointName>rotor_1_joint</jointName>
-      <linkName>rotor_1</linkName>
+      <linkChildName>rotor_1</linkChildName>
+      <linkParentName>base_link</linkParentName>
       <motorNumber>1</motorNumber>
       <turningDirection>ccw</turningDirection>
       <motorSpeedPubTopic>/motor_speed/1</motorSpeedPubTopic>
@@ -331,7 +333,8 @@
     <plugin
       name='gazebo_motor_model::GazeboMotorModel' filename='libgazebo_motor_model.so'>
       <jointName>rotor_2_joint</jointName>
-      <linkName>rotor_2</linkName>
+      <linkChildName>rotor_2</linkChildName>
+      <linkParentName>base_link</linkParentName>
       <motorNumber>2</motorNumber>
       <turningDirection>cw</turningDirection>
       <motorSpeedPubTopic>/motor_speed/2</motorSpeedPubTopic>
@@ -348,7 +351,8 @@
     <plugin
       name='gazebo_motor_model::GazeboMotorModel' filename='libgazebo_motor_model.so'>
       <jointName>rotor_3_joint</jointName>
-      <linkName>rotor_3</linkName>
+      <linkChildName>rotor_3</linkChildName>
+      <linkParentName>base_link</linkParentName>
       <motorNumber>3</motorNumber>
       <turningDirection>cw</turningDirection>
       <motorSpeedPubTopic>/motor_speed/3</motorSpeedPubTopic>
@@ -361,9 +365,9 @@
       <rotorDragCoefficient>0.000175</rotorDragCoefficient>
       <rollingMomentCoefficient>1e-06</rollingMomentCoefficient>
       <rotorVelocitySlowdownSim>10</rotorVelocitySlowdownSim>
-    </plugin> -->
+    </plugin>
 
-    <!-- <plugin
+    <plugin
       filename="libgazebo_barometer_plugin.so"
       name="barometer_plugin::BarometerPlugin">
       <link_name>base_link</link_name>
@@ -377,29 +381,57 @@
       filename="libgazebo_gps_plugin.so"
       name="gps_plugin::GpsPlugin">
       <link_name>base_link</link_name>
-    </plugin> -->
+      <gpsNoise>false</gpsNoise>
+    </plugin>
 
-    <!-- <plugin name='mavlink_interface::GazeboMavlinkInterface' filename='libmavlink_sitl_ign_gazebo.so'>
-      <robotNamespace />
+    <plugin
+      filename="libgazebo_groundtruth_plugin.so"
+      name="groundtruth_plugin::GroundtruthPlugin">
+      <link_name>base_link</link_name>
+    </plugin>
+
+    <plugin name='imu_plugin::ImuPlugin' filename='libgazebo_imu_plugin.so'>
+      <link_name>base_link</link_name>
+      <imuTopic>/imu</imuTopic>
+      <gyroscopeNoiseDensity>0.0</gyroscopeNoiseDensity>
+      <gyroscopeRandomWalk>0.0</gyroscopeRandomWalk>
+      <gyroscopeBiasCorrelationTime>1000.0</gyroscopeBiasCorrelationTime>
+      <gyroscopeTurnOnBiasSigma>0.0</gyroscopeTurnOnBiasSigma>
+      <accelerometerNoiseDensity>0.0</accelerometerNoiseDensity>
+      <accelerometerRandomWalk>0.0</accelerometerRandomWalk>
+      <accelerometerBiasCorrelationTime>300.0</accelerometerBiasCorrelationTime>
+      <accelerometerTurnOnBiasSigma>0.0</accelerometerTurnOnBiasSigma>
+      <!-- <gyroscopeNoiseDensity>0.00018665</gyroscopeNoiseDensity>
+      <gyroscopeRandomWalk>3.8785e-05</gyroscopeRandomWalk>
+      <gyroscopeBiasCorrelationTime>1000.0</gyroscopeBiasCorrelationTime>
+      <gyroscopeTurnOnBiasSigma>0.0087</gyroscopeTurnOnBiasSigma>
+      <accelerometerNoiseDensity>0.00186</accelerometerNoiseDensity>
+      <accelerometerRandomWalk>0.006</accelerometerRandomWalk>
+      <accelerometerBiasCorrelationTime>300.0</accelerometerBiasCorrelationTime>
+      <accelerometerTurnOnBiasSigma>0.196</accelerometerTurnOnBiasSigma> -->
+    </plugin>
+
+    <plugin name='mavlink_interface::GazeboMavlinkInterface'
+      filename='libmavlink_sitl_ign_gazebo.so'>
       <imuSubTopic>/imu</imuSubTopic>
       <magSubTopic>/mag</magSubTopic>
       <baroSubTopic>/baro</baroSubTopic>
       <mavlink_addr>INADDR_ANY</mavlink_addr>
       <mavlink_tcp_port>4560</mavlink_tcp_port>
       <mavlink_udp_port>14560</mavlink_udp_port>
-      <serialEnabled>0</serialEnabled>
+      <serialEnabled>false</serialEnabled>
       <serialDevice>"/dev/ttyACM0"</serialDevice>
       <baudRate>921600</baudRate>
       <qgc_addr>INADDR_ANY</qgc_addr>
       <qgc_udp_port>14550</qgc_udp_port>
       <sdk_addr>INADDR_ANY</sdk_addr>
       <sdk_udp_port>14540</sdk_udp_port>
-      <hil_mode>{{ hil_mode }}</hil_mode>
-      <hil_state_level>0</hil_state_level>
-      <send_vision_estimation>0</send_vision_estimation>
-      <send_odometry>1</send_odometry>
-      <enable_lockstep>1</enable_lockstep>
-      <use_tcp>1</use_tcp>
+      <hil_mode>false</hil_mode>
+      <hil_state_level>false</hil_state_level>
+      <send_vision_estimation>false</send_vision_estimation>
+      <send_odometry>true</send_odometry>
+      <enable_lockstep>true</enable_lockstep>
+      <use_tcp>true</use_tcp>
       <motorSpeedCommandPubTopic>/gazebo/command/motor_speed</motorSpeedCommandPubTopic>
       <control_channels>
         <channel name='rotor1'>
@@ -410,7 +442,8 @@
           <zero_position_armed>100</zero_position_armed>
           <joint_control_type>velocity</joint_control_type>
         </channel>
-        <channel name='rotor2'>
+        <channel
+          name='rotor2'>
           <input_index>1</input_index>
           <input_offset>0</input_offset>
           <input_scaling>1000</input_scaling>
@@ -418,7 +451,8 @@
           <zero_position_armed>100</zero_position_armed>
           <joint_control_type>velocity</joint_control_type>
         </channel>
-        <channel name='rotor3'>
+        <channel
+          name='rotor3'>
           <input_index>2</input_index>
           <input_offset>0</input_offset>
           <input_scaling>1000</input_scaling>
@@ -426,7 +460,8 @@
           <zero_position_armed>100</zero_position_armed>
           <joint_control_type>velocity</joint_control_type>
         </channel>
-        <channel name='rotor4'>
+        <channel
+          name='rotor4'>
           <input_index>3</input_index>
           <input_offset>0</input_offset>
           <input_scaling>1000</input_scaling>
@@ -435,6 +470,6 @@
           <joint_control_type>velocity</joint_control_type>
         </channel>
       </control_channels>
-    </plugin> -->
+    </plugin>
   </model>
 </sdf>
