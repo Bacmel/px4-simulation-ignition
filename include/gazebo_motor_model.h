@@ -120,16 +120,19 @@ namespace gazebo_motor_model
     ignition::gazebo::Model model_{ignition::gazebo::kNullEntity};
 
     // attributs regarding the motor link
-    std::string link_name_;
-    ignition::gazebo::Entity model_link_{ignition::gazebo::kNullEntity};
-    ignition::gazebo::Entity parent_link_{ignition::gazebo::kNullEntity};
+    std::string link_rotor_name_;
+    std::string link_parent_name_;
+
+    ignition::gazebo::Entity model_entity_{ignition::gazebo::kNullEntity};
+    ignition::gazebo::Entity rotor_entity_{ignition::gazebo::kNullEntity};
+    ignition::gazebo::Entity parent_entity_{ignition::gazebo::kNullEntity};
 
     ignition::gazebo::Link link_rotor_;
     ignition::gazebo::Link link_parent_;
 
     // attributs regarding the motor joint
     std::string joint_name_;
-    ignition::gazebo::Entity model_joint_{ignition::gazebo::kNullEntity};
+    ignition::gazebo::Entity joint_entity_{ignition::gazebo::kNullEntity};
 
     std::string command_sub_topic_;
     // std::string motor_failure_sub_topic_;

@@ -50,13 +50,22 @@ void GazeboMotorModel::getSdfParams(const std::shared_ptr<const sdf::Element> &_
     ignerr << "[gazebo_motor_model] Please specify a jointName, where the rotor is attached.\n";
   }
 
-  if (_sdf->HasElement("linkName"))
+  if (_sdf->HasElement("linkChildName"))
   {
-    link_name_ = _sdf->Get<std::string>("linkName");
+    link_rotor_name_ = _sdf->Get<std::string>("linkChildName");
   }
   else
   {
-    ignerr << "[gazebo_motor_model] Please specify a linkName of the rotor.\n";
+    ignerr << "[gazebo_motor_model] Please specify a linkChildName of the rotor.\n";
+  }
+
+  if (_sdf->HasElement("linkParentName"))
+  {
+    link_parent_name_ = _sdf->Get<std::string>("linkParentName");
+  }
+  else
+  {
+    ignerr << "[gazebo_motor_model] Please specify a linkParentName of the rotor.\n";
   }
 
   if (_sdf->HasElement("motorNumber"))
@@ -216,34 +225,20 @@ void GazeboMotorModel::Configure(const ignition::gazebo::Entity &_entity,
                                  ignition::gazebo::EntityComponentManager &_ecm,
                                  ignition::gazebo::EventManager & /*_eventMgr*/)
 {
+  model_entity_ = _entity;
   model_ = ignition::gazebo::Model(_entity);
 
   getSdfParams(_sdf);
 
   std::string model_name_ = model_.Name(_ecm);
 
-  // Get link and joint entities
-  model_link_ = model_.LinkByName(_ecm, link_name_);
-  model_joint_ = model_.JointByName(_ecm, joint_name_);
+  // Get links and joint entities
+  rotor_entity_ = model_.LinkByName(_ecm, link_rotor_name_);
+  parent_entity_ = model_.LinkByName(_ecm, link_parent_name_);
+  joint_entity_ = model_.JointByName(_ecm, joint_name_);
 
-  auto list = model_.Links(_ecm);
-  for (auto a = list.begin(); a != list.end(); ++a)
-  {
-    auto link = ignition::gazebo::Link(*a);
-    ignerr << link.Name(_ecm).value() << "\n";
-  }
-
-  auto list2 = model_.Joints(_ecm);
-  for (auto a = list2.begin(); a != list2.end(); ++a)
-  {
-    auto joint = _ecm.ComponentData<ignition::gazebo::components::Name>(*a).value();
-    ignerr << joint << "\n";
-  }
-
-  ignerr << _ecm.ComponentData<ignition::gazebo::components::Name>(model_link_).value() << "\n";
-  ignerr << _ecm.ComponentData<ignition::gazebo::components::Name>(model_joint_).value() << "\n";
-
-  link_rotor_ = ignition::gazebo::Link(model_link_);
+  link_rotor_ = ignition::gazebo::Link(rotor_entity_);
+  link_parent_ = ignition::gazebo::Link(parent_entity_);
 
   motor_velocity_pub_ = this->node.Advertise<std_msgs::msgs::Float>("/" + model_name_ + motor_speed_pub_topic_);
   node.Subscribe("/" + model_name_ + command_sub_topic_, &GazeboMotorModel::VelocityCallback, this);
@@ -253,43 +248,32 @@ void GazeboMotorModel::Configure(const ignition::gazebo::Entity &_entity,
   // Create the first order filter.
   rotor_velocity_filter_.reset(new FirstOrderFilter<double>(time_constant_up_, time_constant_down_, ref_motor_rot_vel_));
 
-  if (!_ecm.EntityHasComponentType(model_link_, ignition::gazebo::components::LinearVelocity::typeId))
+  if (!_ecm.EntityHasComponentType(rotor_entity_, ignition::gazebo::components::LinearVelocity::typeId))
   {
-    _ecm.CreateComponent(model_link_, ignition::gazebo::components::LinearVelocity());
+    _ecm.CreateComponent(rotor_entity_, ignition::gazebo::components::LinearVelocity());
   }
 
-  if (!_ecm.EntityHasComponentType(model_link_, ignition::gazebo::components::ParentEntity::typeId))
+  if (!_ecm.EntityHasComponentType(parent_entity_, ignition::gazebo::components::WorldPose::typeId))
   {
-    _ecm.CreateComponent(model_link_, ignition::gazebo::components::ParentEntity());
+    _ecm.CreateComponent(parent_entity_, ignition::gazebo::components::WorldPose());
   }
 
-  // Assure that the parent link as a world pose component
-  // TODO: GET THE PARENT LINK NOT THE ENTITY
-  parent_link_ = _ecm.ComponentData<ignition::gazebo::components::ParentEntity>(model_joint_).value();
-  link_parent_ = ignition::gazebo::Link(parent_link_);
-  ignerr << link_parent_.Name(_ecm).value();
-
-  if (!_ecm.EntityHasComponentType(parent_link_, ignition::gazebo::components::WorldPose::typeId))
+  if (!_ecm.EntityHasComponentType(rotor_entity_, ignition::gazebo::components::WorldPose::typeId))
   {
-    _ecm.CreateComponent(parent_link_, ignition::gazebo::components::WorldPose());
+    _ecm.CreateComponent(rotor_entity_, ignition::gazebo::components::WorldPose());
   }
 
-  if (!_ecm.EntityHasComponentType(model_link_, ignition::gazebo::components::WorldPose::typeId))
+  if (!_ecm.EntityHasComponentType(joint_entity_, ignition::gazebo::components::JointVelocity::typeId))
   {
-    _ecm.CreateComponent(model_link_, ignition::gazebo::components::WorldPose());
+    _ecm.CreateComponent(joint_entity_, ignition::gazebo::components::JointVelocity());
   }
-
-  if (!_ecm.EntityHasComponentType(model_joint_, ignition::gazebo::components::JointVelocity::typeId))
+  if (!_ecm.EntityHasComponentType(joint_entity_, ignition::gazebo::components::JointAxis::typeId))
   {
-    _ecm.CreateComponent(model_joint_, ignition::gazebo::components::JointVelocity());
+    _ecm.CreateComponent(joint_entity_, ignition::gazebo::components::JointAxis());
   }
-  if (!_ecm.EntityHasComponentType(model_joint_, ignition::gazebo::components::JointAxis::typeId))
+  if (!_ecm.EntityHasComponentType(joint_entity_, ignition::gazebo::components::JointVelocityCmd::typeId))
   {
-    _ecm.CreateComponent(model_joint_, ignition::gazebo::components::JointAxis());
-  }
-  if (!_ecm.EntityHasComponentType(model_joint_, ignition::gazebo::components::JointVelocityCmd::typeId))
-  {
-    _ecm.CreateComponent(model_joint_, ignition::gazebo::components::JointVelocityCmd());
+    _ecm.CreateComponent(joint_entity_, ignition::gazebo::components::JointVelocityCmd());
   }
 }
 
@@ -318,7 +302,7 @@ void GazeboMotorModel::PostUpdate(const ignition::gazebo::UpdateInfo &_info,
 
 void GazeboMotorModel::Publish(const ignition::gazebo::EntityComponentManager &_ecm)
 {
-  std::vector<double> joint_vel = _ecm.ComponentData<ignition::gazebo::components::JointVelocity>(model_joint_).value();
+  std::vector<double> joint_vel = _ecm.ComponentData<ignition::gazebo::components::JointVelocity>(joint_entity_).value();
 
   double vel = 0.0;
 
@@ -350,7 +334,7 @@ void GazeboMotorModel::VelocityCallback(const mav_msgs::msgs::CommandMotorSpeed 
 void GazeboMotorModel::UpdateForcesAndMoments(ignition::gazebo::EntityComponentManager &_ecm)
 {
 
-  std::vector<double> joint_vel = _ecm.ComponentData<ignition::gazebo::components::JointVelocity>(model_joint_).value();
+  std::vector<double> joint_vel = _ecm.ComponentData<ignition::gazebo::components::JointVelocity>(joint_entity_).value();
   if (joint_vel.size() == 0)
   {
     motor_rot_vel_ = 0.0;
@@ -380,7 +364,7 @@ void GazeboMotorModel::UpdateForcesAndMoments(ignition::gazebo::EntityComponentM
   // ignition::math::Vector3d body_velocity = _ecm.ComponentData<ignition::gazebo::components::LinearVelocity>(model_link_).value();
   const auto body_velocity = link_rotor_.WorldLinearVelocity(_ecm);
   // sdf::JointAxis joint_sdf = _ecm.ComponentData<ignition::gazebo::components::JointAxis>(model_joint_).value();
-  const ignition::math::Vector3d joint_axis = _ecm.ComponentData<ignition::gazebo::components::JointAxis>(model_joint_).value().Xyz();
+  const ignition::math::Vector3d joint_axis = _ecm.ComponentData<ignition::gazebo::components::JointAxis>(joint_entity_).value().Xyz();
 
   const ignition::math::Vector3d relative_wind_velocity = body_velocity.value_or(ignition::math::Vector3d(0, 0, 0)) - wind_vel_;
   const ignition::math::Vector3d velocity_parallel_to_rotor_axis = (relative_wind_velocity.Dot(joint_axis)) * joint_axis;
@@ -421,7 +405,7 @@ void GazeboMotorModel::UpdateForcesAndMoments(ignition::gazebo::EntityComponentM
   double ref_motor_rot_vel = rotor_velocity_filter_->updateFilter(ref_motor_rot_vel_, sampling_time_);
 
   ignition::gazebo::components::JointVelocityCmd vel_cmd({turning_direction_ * ref_motor_rot_vel / rotor_velocity_slowdown_sim_});
-  _ecm.SetComponentData<ignition::gazebo::components::JointVelocityCmd>(model_joint_, vel_cmd.Data());
+  _ecm.SetComponentData<ignition::gazebo::components::JointVelocityCmd>(joint_entity_, vel_cmd.Data());
 }
 
 /*void GazeboMotorModel::UpdateMotorFail()
