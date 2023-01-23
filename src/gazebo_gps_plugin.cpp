@@ -129,6 +129,18 @@ void GpsPlugin::getSdfParams(const std::shared_ptr<const sdf::Element> &sdf)
             << gps_vz_noise_density_ << "\n";
   }
 
+  // get velocity noise density in Z
+  if (sdf->HasElement("gpsNoise"))
+  {
+    gps_noise_ = sdf->Get<bool>("gpsNoise");
+  }
+  else
+  {
+    gps_noise_ = kDefaultGpsNoise;
+    ignwarn << "[gazebo_gps_plugin] Using noise : "
+            << gps_noise_ << "\n";
+  }
+
   // get update rate
   if (sdf->HasElement("pubRate"))
   {
