@@ -113,7 +113,7 @@ void GroundtruthPlugin::getSdfParams(const std::shared_ptr<const sdf::Element> &
         ignwarn << "[gazebo_groundtruth_plugin] Using default home altitude of " << alt_home_ << " m\n";
     }
 
-    link_name_ = sdf->Get<std::string>("link_name");
+    link_name_ = sdf->Get<std::string>("linkName");
 }
 
 void GroundtruthPlugin::Configure(const ignition::gazebo::Entity &_entity,

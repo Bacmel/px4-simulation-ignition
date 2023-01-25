@@ -112,7 +112,7 @@ void MagnetometerPlugin::getSdfParams(const std::shared_ptr<const sdf::Element> 
     ignwarn << "[gazebo_magnetometer_plugin] Using default magnetometer topic " << mag_topic_ << "\n";
   }
 
-  link_name_ = sdf->Get<std::string>("link_name");
+  link_name_ = sdf->Get<std::string>("linkName");
 }
 
 void MagnetometerPlugin::Configure(const ignition::gazebo::Entity &_entity,

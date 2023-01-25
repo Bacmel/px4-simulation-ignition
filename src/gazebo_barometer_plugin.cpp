@@ -108,7 +108,7 @@ void BarometerPlugin::getSdfParams(const std::shared_ptr<const sdf::Element> &sd
     ignwarn << "[gazebo_barometer_plugin] Using default barometer drift per second of " << baro_drift_pa_per_sec_ << "\n";
   }
 
-  link_name_ = sdf->Get<std::string>("link_name");
+  link_name_ = sdf->Get<std::string>("linkName");
 }
 
 void BarometerPlugin::Configure(const ignition::gazebo::Entity &_entity,

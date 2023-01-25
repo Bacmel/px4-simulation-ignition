@@ -61,7 +61,7 @@ void MultirotorBasePlugin::getSdfParams(const std::shared_ptr<const sdf::Element
     ignwarn << "[multirotor_base_plugin] Using default velocity slowdown of " << rotor_velocity_slowdown_sim_ << " Hz\n";
   }
 
-  link_name_ = sdf->Get<std::string>("link_name");
+  link_name_ = sdf->Get<std::string>("linkName");
 }
 
 void MultirotorBasePlugin::Configure(const ignition::gazebo::Entity &_entity,

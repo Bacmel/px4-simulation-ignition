@@ -93,7 +93,6 @@ void ImuPlugin::Configure(const ignition::gazebo::Entity &_entity,
   }
   else
   {
-    _ecm.CreateComponent(model_link_, ignition::gazebo::components::Gravity());
     gravity_W_ = _ecm.Component<ignition::gazebo::components::Gravity>(model_link_)->Data();
   }
   imu_parameters_.gravity_magnitude = gravity_W_.Length();
@@ -320,7 +319,7 @@ void ImuPlugin::getSdfParams(const std::shared_ptr<const sdf::Element> &sdf)
     ignwarn << "[gazebo_imu_plugin] Using accelerometer turn on bias sigma " << imu_parameters_.accelerometer_turn_on_bias_sigma << "\n";
   }
 
-  link_name_ = sdf->Get<std::string>("link_name");
+  link_name_ = sdf->Get<std::string>("linkName");
   frame_id_ = link_name_;
 }
 

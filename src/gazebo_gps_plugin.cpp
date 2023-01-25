@@ -152,7 +152,7 @@ void GpsPlugin::getSdfParams(const std::shared_ptr<const sdf::Element> &sdf)
     ignwarn << "[gazebo_gps_plugin] Using default publication rate of " << pub_rate_ << " Hz\n";
   }
 
-  link_name_ = sdf->Get<std::string>("link_name");
+  link_name_ = sdf->Get<std::string>("linkName");
 }
 
 void GpsPlugin::Configure(const ignition::gazebo::Entity &_entity,
