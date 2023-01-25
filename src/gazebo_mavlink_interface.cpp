@@ -77,12 +77,70 @@ void GazeboMavlinkInterface::Configure(const ignition::gazebo::Entity &_entity,
   // set input_reference_ from inputs.control
   input_reference_.resize(n_out_max);
 
-  /// TODO: Parse input reference
+  /// Parse input reference
   input_scaling_.resize(n_out_max);
-  input_scaling_(0) = 1000;
-  input_scaling_(1) = 1000;
-  input_scaling_(2) = 1000;
-  input_scaling_(3) = 1000;
+
+  if (_sdf->HasElement("control_channels"))
+  {
+    sdf::ElementConstPtr controlSDF;
+    controlSDF = _sdf->FindElement("control_channels");
+    if (controlSDF->HasElement("channel"))
+    {
+      sdf::ElementConstPtr channelSDF;
+      channelSDF = controlSDF->FindElement("channel");
+      size_t i = 0;
+      while (channelSDF)
+      {
+        ignerr << "in channel\n";
+        if (channelSDF->HasElement("input_index"))
+        {
+          input_index_[i] = channelSDF->Get<double>("input_index");
+          ignerr << "input_index_[" << i << "] : " << input_index_[i] << "\n";
+        }
+        if (channelSDF->HasElement("input_offset"))
+        {
+          input_offset_[i] = channelSDF->Get<double>("input_offset");
+          ignerr << "input_offset_[" << i << "] : " << input_offset_[i] << "\n";
+        }
+        if (channelSDF->HasElement("input_scaling"))
+        {
+          input_scaling_[i] = channelSDF->Get<double>("input_scaling");
+          ignerr << "input_scaling_[" << i << "] : " << input_scaling_[i] << "\n";
+        }
+        if (channelSDF->HasElement("zero_position_disarmed"))
+        {
+          zero_position_disarmed_[i] = channelSDF->Get<double>("zero_position_disarmed");
+          ignerr << "zero_position_disarmed_[" << i << "] : " << zero_position_disarmed_[i] << "\n";
+        }
+        if (channelSDF->HasElement("zero_position_armed"))
+        {
+          zero_position_armed_[i] = channelSDF->Get<double>("zero_position_armed");
+          ignerr << "zero_position_armed_[" << i << "] : " << zero_position_armed_[i] << "\n";
+        }
+        if (channelSDF->HasElement("joint_control_type"))
+        {
+          joint_control_type_[i] = channelSDF->Get<std::string>("joint_control_type");
+          ignerr << "joint_control_type_[" << i << "] : " << joint_control_type_[i] << "\n";
+        }
+
+        i++;
+        channelSDF = channelSDF->GetNextElement();
+      }
+    }
+  }
+  else
+  {
+    ignerr << "Has no control_channels\n";
+    input_scaling_(0) = 1000;
+    input_scaling_(1) = 1000;
+    input_scaling_(2) = 1000;
+    input_scaling_(3) = 1000;
+
+    for (unsigned i = 0; i < n_out_max; i++)
+    {
+      input_index_[i] = i;
+    }
+  }
 
   if (_sdf->HasElement("hil_mode"))
   {
@@ -463,10 +521,6 @@ void GazeboMavlinkInterface::handle_actuator_controls(const ignition::gazebo::Up
 
   last_actuator_time_ = _info.simTime;
 
-  for (unsigned i = 0; i < n_out_max; i++)
-  {
-    input_index_[i] = i;
-  }
   // Read Input References
   input_reference_.resize(n_out_max);
 
@@ -484,6 +538,7 @@ void GazeboMavlinkInterface::handle_actuator_controls(const ignition::gazebo::Up
     {
       input_reference_[i] = zero_position_disarmed_[i];
     }
+    // ignerr << "input_reference_[" << i << "] : " << input_reference_[i] << "\n";
   }
   received_first_actuator_ = mavlink_interface_->GetReceivedFirstActuator();
 }
