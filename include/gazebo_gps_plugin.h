@@ -24,7 +24,6 @@
  * @author Nuno Marques <nuno.marques@dronesolutions.io>
  */
 
-
 #ifndef GPS_PLUGIN_HH_
 #define GPS_PLUGIN_HH_
 
@@ -42,33 +41,46 @@
 #include <SITLGps.pb.h>
 #include <common.h>
 
-static constexpr double kDefaultUpdateRate = 5.0;               // hz
-static constexpr double kDefaultGpsXYRandomWalk = 2.0;          // (m/s) / sqrt(hz)
-static constexpr double kDefaultGpsZRandomWalk = 4.0;           // (m/s) / sqrt(hz)
-static constexpr double kDefaultGpsXYNoiseDensity = 2.0e-4;     // (m) / sqrt(hz)
-static constexpr double kDefaultGpsZNoiseDensity = 4.0e-4;      // (m) / sqrt(hz)
-static constexpr double kDefaultGpsVXYNoiseDensity = 0.2;       // (m/s) / sqrt(hz)
-static constexpr double kDefaultGpsVZNoiseDensity = 0.4;        // (m/s) / sqrt(hz)
+static constexpr auto kDefaultGpsTopic = "/gps";
+static constexpr double kDefaultUpdateRate = 5.0;      // hz
+static constexpr double kDefaultGpsXYRandomWalk = 2.0; // (m/s) / sqrt(hz)
+// static constexpr double kDefaultGpsXYRandomWalk = 0.2;          // (m/s) / sqrt(hz)
+static constexpr double kDefaultGpsZRandomWalk = 4.0; // (m/s) / sqrt(hz)
+// static constexpr double kDefaultGpsZRandomWalk = 0.4;           // (m/s) / sqrt(hz)
+static constexpr double kDefaultGpsXYNoiseDensity = 2.0e-4; // (m) / sqrt(hz)
+static constexpr double kDefaultGpsZNoiseDensity = 4.0e-4;  // (m) / sqrt(hz)
+static constexpr double kDefaultGpsVXYNoiseDensity = 0.2;   // (m/s) / sqrt(hz)
+static constexpr double kDefaultGpsVZNoiseDensity = 0.4;    // (m/s) / sqrt(hz)
 
 namespace gps_plugin
 {
-    class IGNITION_GAZEBO_VISIBLE GpsPlugin:
-    // This is class a system.
-    public ignition::gazebo::System,
-    public ignition::gazebo::ISystemConfigure,
-    public ignition::gazebo::ISystemPreUpdate,
-    public ignition::gazebo::ISystemPostUpdate
+    class IGNITION_GAZEBO_VISIBLE GpsPlugin :
+        // This is class a system.
+        public ignition::gazebo::System,
+        public ignition::gazebo::ISystemConfigure,
+        public ignition::gazebo::ISystemPreUpdate,
+        public ignition::gazebo::ISystemPostUpdate
     {
-    public: GpsPlugin();
-    public: ~GpsPlugin() override;
-    public: void Configure(const ignition::gazebo::Entity &_entity,
-                            const std::shared_ptr<const sdf::Element> &_sdf,
-                            ignition::gazebo::EntityComponentManager &_ecm,
-                            ignition::gazebo::EventManager &/*_eventMgr*/);
-    public: void PreUpdate(const ignition::gazebo::UpdateInfo &_info,
-                ignition::gazebo::EntityComponentManager &_ecm) override;
-    public: void PostUpdate(const ignition::gazebo::UpdateInfo &_info,
-                const ignition::gazebo::EntityComponentManager &_ecm) override;
+    public:
+        GpsPlugin();
+
+    public:
+        ~GpsPlugin() override;
+
+    public:
+        void Configure(const ignition::gazebo::Entity &_entity,
+                       const std::shared_ptr<const sdf::Element> &_sdf,
+                       ignition::gazebo::EntityComponentManager &_ecm,
+                       ignition::gazebo::EventManager & /*_eventMgr*/);
+
+    public:
+        void PreUpdate(const ignition::gazebo::UpdateInfo &_info,
+                       ignition::gazebo::EntityComponentManager &_ecm) override;
+
+    public:
+        void PostUpdate(const ignition::gazebo::UpdateInfo &_info,
+                        const ignition::gazebo::EntityComponentManager &_ecm) override;
+
     private:
         std::chrono::steady_clock::duration last_pub_time_{0};
 
@@ -90,7 +102,6 @@ namespace gps_plugin
         std::string gps_topic_;
         double update_rate_{1.0};
 
-
         std::mutex data_mutex_;
 
         // Home defaults to Zurich Irchel Park
@@ -104,7 +115,7 @@ namespace gps_plugin
         double world_altitude_ = 0.0;
 
         // gps delay related
-        static constexpr double gps_delay_ = 0.12;           // 120 ms
+        static constexpr double gps_delay_ = 0.12; // 120 ms
         static constexpr int gps_buffer_size_max_ = 1000;
         std::queue<sensor_msgs::msgs::SITLGps> gps_delay_buffer_;
 
@@ -116,11 +127,11 @@ namespace gps_plugin
         ignition::math::Vector3d velocity_prev_W_;
 
         // gps noise parameters
-        double std_xy_;    // meters
-        double std_z_;     // meters
+        double std_xy_; // meters
+        double std_z_;  // meters
         std::default_random_engine rand_;
         std::normal_distribution<float> randn_;
-        static constexpr const double gps_corellation_time_ = 60.0;    // s
+        static constexpr const double gps_corellation_time_ = 60.0; // s
         double gps_xy_random_walk_;
         double gps_z_random_walk_;
         double gps_xy_noise_density_;
