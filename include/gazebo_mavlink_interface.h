@@ -62,6 +62,8 @@
 #include <ignition/gazebo/components/JointVelocityCmd.hh>
 #include <ignition/gazebo/components/LinearVelocity.hh>
 #include <ignition/gazebo/components/Name.hh>
+#include <ignition/gazebo/components/Sensor.hh>
+#include <ignition/gazebo/components/ParentEntity.hh>
 #include <ignition/gazebo/components/Pose.hh>
 
 #include <ignition/transport/Node.hh>
@@ -75,7 +77,6 @@
 #include <development/mavlink.h>
 #include "msgbuffer.h"
 #include "mavlink_interface.h"
-
 
 using lock_guard = std::lock_guard<std::recursive_mutex>;
 
@@ -100,123 +101,136 @@ static const std::string kDefaultBarometerTopic = "/baro";
 
 namespace mavlink_interface
 {
-  class IGNITION_GAZEBO_VISIBLE GazeboMavlinkInterface:
-    public ignition::gazebo::System,
-    public ignition::gazebo::ISystemConfigure,
-    public ignition::gazebo::ISystemPreUpdate,
-    public ignition::gazebo::ISystemPostUpdate
+  class IGNITION_GAZEBO_VISIBLE GazeboMavlinkInterface : public ignition::gazebo::System,
+                                                         public ignition::gazebo::ISystemConfigure,
+                                                         public ignition::gazebo::ISystemPreUpdate,
+                                                         public ignition::gazebo::ISystemPostUpdate
   {
-    public: GazeboMavlinkInterface();
+  public:
+    GazeboMavlinkInterface();
 
-    public: ~GazeboMavlinkInterface() override;
-    public: void Configure(const ignition::gazebo::Entity &_entity,
-                            const std::shared_ptr<const sdf::Element> &_sdf,
-                            ignition::gazebo::EntityComponentManager &_ecm,
-                            ignition::gazebo::EventManager &/*_eventMgr*/);
-    public: void PreUpdate(const ignition::gazebo::UpdateInfo &_info,
-                ignition::gazebo::EntityComponentManager &_ecm);
-    public: void PostUpdate(const ignition::gazebo::UpdateInfo &_info,
-                const ignition::gazebo::EntityComponentManager &_ecm) override;
-    private:
-      ignition::common::ConnectionPtr sigIntConnection_;
-      std::shared_ptr<MavlinkInterface> mavlink_interface_;
-      bool received_first_actuator_{false};
-      Eigen::VectorXd input_reference_;
+  public:
+    ~GazeboMavlinkInterface() override;
 
-      ignition::gazebo::Entity entity_{ignition::gazebo::kNullEntity};
-      ignition::gazebo::Model model_{ignition::gazebo::kNullEntity};
-      ignition::gazebo::Entity modelLink_{ignition::gazebo::kNullEntity};
-      std::string model_name_;
+  public:
+    void Configure(const ignition::gazebo::Entity &_entity,
+                   const std::shared_ptr<const sdf::Element> &_sdf,
+                   ignition::gazebo::EntityComponentManager &_ecm,
+                   ignition::gazebo::EventManager & /*_eventMgr*/);
 
-      float protocol_version_{2.0};
+  public:
+    void PreUpdate(const ignition::gazebo::UpdateInfo &_info,
+                   ignition::gazebo::EntityComponentManager &_ecm);
 
-      std::string namespace_{kDefaultNamespace};
-      std::string motor_velocity_reference_pub_topic_{kDefaultMotorVelocityReferencePubTopic};
-      std::string mavlink_control_sub_topic_;
-      std::string link_name_;
+  public:
+    void PostUpdate(const ignition::gazebo::UpdateInfo &_info,
+                    const ignition::gazebo::EntityComponentManager &_ecm) override;
 
-      bool use_propeller_pid_{false};
-      bool use_elevator_pid_{false};
-      bool use_left_elevon_pid_{false};
-      bool use_right_elevon_pid_{false};
+  private:
+    ignition::common::ConnectionPtr sigIntConnection_;
+    std::shared_ptr<MavlinkInterface> mavlink_interface_;
+    bool received_first_actuator_{false};
+    Eigen::VectorXd input_reference_;
 
-      void ImuCallback(const ignition::msgs::IMU &_msg);
-      void BarometerCallback(const sensor_msgs::msgs::Pressure &_msg);
-      void MagnetometerCallback(const sensor_msgs::msgs::MagneticField &_msg);
-      void GpsCallback(const sensor_msgs::msgs::SITLGps &_msg);
-      void SendSensorMessages(const ignition::gazebo::UpdateInfo &_info);
-      void SendGroundTruth();
-      void PublishRotorVelocities(ignition::gazebo::EntityComponentManager &_ecm,
-          const Eigen::VectorXd &_vels);
-      void handle_actuator_controls(const ignition::gazebo::UpdateInfo &_info);
-      void handle_control(double _dt);
-      void onSigInt();
-      bool IsRunning();
+    ignition::gazebo::Entity entity_{ignition::gazebo::kNullEntity};
+    ignition::gazebo::Model model_{ignition::gazebo::kNullEntity};
+    ignition::gazebo::Entity model_link_{ignition::gazebo::kNullEntity};
+    std::string model_name_;
 
-      static const unsigned n_out_max = 16;
+    float protocol_version_{2.0};
 
-      double input_offset_[n_out_max];
-      Eigen::VectorXd input_scaling_;
-      std::string joint_control_type_[n_out_max];
-      std::string gztopic_[n_out_max];
-      double zero_position_disarmed_[n_out_max];
-      double zero_position_armed_[n_out_max];
-      int input_index_[n_out_max];
+    std::string namespace_{kDefaultNamespace};
+    std::string motor_velocity_reference_pub_topic_{kDefaultMotorVelocityReferencePubTopic};
+    std::string mavlink_control_sub_topic_;
+    std::string link_name_;
 
-      /// \brief Ignition communication node.
-      ignition::transport::Node node;
+    bool use_propeller_pid_{false};
+    bool use_elevator_pid_{false};
+    bool use_left_elevon_pid_{false};
+    bool use_right_elevon_pid_{false};
 
-      std::string opticalFlow_sub_topic_{kDefaultOpticalFlowTopic};
-      std::string irlock_sub_topic_{kDefaultIRLockTopic};
-      std::string gps_sub_topic_{kDefaultGPSTopic};
-      std::string groundtruth_sub_topic_;
-      std::string vision_sub_topic_{kDefaultVisionTopic};
-      std::string mag_sub_topic_{kDefaultMagTopic};
-      std::string baro_sub_topic_{kDefaultBarometerTopic};
+    void ImuCallback(const ignition::msgs::IMU &_msg);
+    void BarometerCallback(const sensor_msgs::msgs::Pressure &_msg);
+    void MagnetometerCallback(const sensor_msgs::msgs::MagneticField &_msg);
+    void GpsCallback(const sensor_msgs::msgs::SITLGps &_msg);
+    void SendSensorMessages(const ignition::gazebo::UpdateInfo &_info);
+    void SendGroundTruth();
+    void PublishRotorVelocities(ignition::gazebo::EntityComponentManager &_ecm,
+                                const Eigen::VectorXd &_vels);
+    void handle_actuator_controls(const ignition::gazebo::UpdateInfo &_info);
+    void handle_control(double _dt);
+    void onSigInt();
+    bool IsRunning();
 
-      std::mutex last_imu_message_mutex_ {};
+    static const unsigned n_out_max = 16;
 
-      ignition::msgs::IMU last_imu_message_;
-      ignition::msgs::Actuators rotor_velocity_message_;
+    double input_offset_[n_out_max];
+    Eigen::VectorXd input_scaling_;
+    std::string joint_control_type_[n_out_max];
+    std::string gztopic_[n_out_max];
+    double zero_position_disarmed_[n_out_max];
+    double zero_position_armed_[n_out_max];
+    int input_index_[n_out_max];
 
-      std::chrono::steady_clock::duration last_imu_time_{0};
-      std::chrono::steady_clock::duration lastControllerUpdateTime{0};
-      std::chrono::steady_clock::duration last_actuator_time_{0};
+    /// \brief Ignition communication node.
+    ignition::transport::Node node;
 
-      bool mag_updated_{false};
-      bool baro_updated_;
-      bool diff_press_updated_;
+    std::string imu_sub_topic_{kDefaultImuTopic};
+    std::string opticalFlow_sub_topic_{kDefaultOpticalFlowTopic};
+    std::string irlock_sub_topic_{kDefaultIRLockTopic};
+    std::string gps_sub_topic_{kDefaultGPSTopic};
+    std::string groundtruth_sub_topic_;
+    std::string vision_sub_topic_{kDefaultVisionTopic};
+    std::string mag_sub_topic_{kDefaultMagTopic};
+    std::string baro_sub_topic_{kDefaultBarometerTopic};
 
-      double groundtruth_lat_rad{0.0};
-      double groundtruth_lon_rad{0.0};
-      double groundtruth_altitude{0.0};
+    std::mutex last_imu_message_mutex_{};
 
-      double imu_update_interval_ = 0.004; ///< Used for non-lockstep
+    ignition::msgs::IMU last_imu_message_;
+    ignition::msgs::Actuators rotor_velocity_message_;
 
-      ignition::math::Vector3d gravity_W_{ignition::math::Vector3d(0.0, 0.0, -9.8)};
-      ignition::math::Vector3d velocity_prev_W_;
-      ignition::math::Vector3d mag_n_;
+    std::chrono::steady_clock::duration last_imu_time_{0};
+    std::chrono::steady_clock::duration lastControllerUpdateTime{0};
+    std::chrono::steady_clock::duration last_actuator_time_{0};
 
-      double temperature_;
-      double pressure_alt_;
-      double abs_pressure_;
+    bool mag_updated_{false};
+    bool baro_updated_;
+    bool diff_press_updated_;
 
-      bool use_tcp_ = false;
-      bool close_conn_ = false;
+    double groundtruth_lat_rad{0.0};
+    double groundtruth_lon_rad{0.0};
+    double groundtruth_altitude{0.0};
 
-      double optflow_distance;
-      double sonar_distance;
+    double imu_update_interval_ = 0.004; ///< Used for non-lockstep
 
-      bool enable_lockstep_ = false;
-      bool serial_enabled_;
-      double speed_factor_ = 1.0;
-      int64_t previous_imu_seq_ = 0;
-      unsigned update_skip_factor_ = 1;
+    ignition::math::Vector3d gravity_W_{ignition::math::Vector3d(0.0, 0.0, -9.8)};
+    ignition::math::Vector3d velocity_prev_W_;
+    ignition::math::Vector3d mag_n_;
 
-      bool hil_mode_{false};
-      bool hil_state_level_{false};
+    double temperature_;
+    double pressure_alt_;
+    double abs_pressure_;
 
-      std::atomic<bool> gotSigInt_ {false};
+    bool use_tcp_ = false;
+    bool close_conn_ = false;
+
+    double optflow_distance;
+    double sonar_distance;
+
+    bool enable_lockstep_ = false;
+    bool serial_enabled_;
+    double speed_factor_ = 1.0;
+    int64_t previous_imu_seq_ = 0;
+    unsigned update_skip_factor_ = 1;
+
+    bool hil_mode_{false};
+    bool hil_state_level_{false};
+
+    std::atomic<bool> gotSigInt_{false};
+
+    std::string name_imu_;
+    bool is_imu_initialized_{false};
+    bool imu_msg_valid_;
   };
 }
 
