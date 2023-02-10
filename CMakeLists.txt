@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.10.2 FATAL_ERROR)
-project(mavlink_sitl_ign_gazebo)
+project(mavlink_sitl_ign)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
 
@@ -33,10 +33,11 @@ PROTOBUF_GENERATE_CPP(SEN_PROTO_SRCS SEN_PROTO_HDRS DESCRIPTORS SEN_PROTO_DESCS
   msgs/MagneticField.proto
   msgs/Groundtruth.proto
   msgs/SITLGps.proto
+  msgs/OdriCmd.proto
+  msgs/OdriState.proto
 )
 
-set_source_files_properties(${SEN_PROTO_SRC} ${SEN_PROTO_HDRS}
-  PROPERTIES GENERATED TRUE)
+set_source_files_properties(${SEN_PROTO_SRC} ${SEN_PROTO_HDRS}  PROPERTIES GENERATED TRUE)
 add_library(gazebo_mavlink_sensor_msgs SHARED ${SEN_PROTO_SRCS} ${SEN_PROTO_DESCS})
 target_link_libraries(gazebo_mavlink_sensor_msgs ignition-msgs${IGN_MSG_VER})
 
@@ -86,15 +87,27 @@ target_link_libraries(gazebo_gps_plugin
   PRIVATE gazebo_mavlink_sensor_msgs
 )
 
+add_library(odri_joint_controller SHARED src/gazebo_odri_joint_controller.cpp)
+set_property(TARGET odri_joint_controller PROPERTY CXX_STANDARD 17)
+target_link_libraries(odri_joint_controller
+  PRIVATE ${Boost_LIBRARIES}
+  PRIVATE ignition-plugin${IGN_PLUGIN_VER}::ignition-plugin${IGN_PLUGIN_VER}
+  PRIVATE ignition-gazebo${GAZEBO_VERSION}::ignition-gazebo${GAZEBO_VERSION}
+  PRIVATE gazebo_mavlink_sensor_msgs
+)
+
 include(GNUInstallDirs)
 install(TARGETS
   mavlink_sitl_ign_gazebo
   gazebo_barometer_plugin
   gazebo_magnetometer_plugin
   gazebo_gps_plugin
+  odri_joint_controller
   gazebo_mavlink_sensor_msgs
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
 )
+
+install(FILES ${SEN_PROTO_HDRS} DESTINATION include/gazebo_mavlink_sensor_msgs)
 
 set(CPACK_PACKAGE_CONTACT "Auterion")
 include(CPack)

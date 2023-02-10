@@ -1,0 +1,13 @@
+syntax = "proto2";
+package cmd_msgs.msgs;
+
+message OdriCmd
+{
+  required int64  time_usec             = 1;
+  required double cmd_pos               = 2;
+  required double cmd_vel               = 3;
+  optional double cmd_force             = 4;
+  optional double kp                    = 5;
+  optional double kd                    = 6;
+  optional double max_i                 = 7;
+}
